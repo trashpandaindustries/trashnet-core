@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:alpine
+    container_name: trashnet-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"     # LAN access
+      - "443:443"   # WAN access
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - trashnet-net
+
+  api:
+    build: 
+      context: .
+      dockerfile: ./docker/api/Dockerfile
+    container_name: trashnet-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://user:password@postgres:5432/trashnet
+      - JWT_SECRET=change_this_to_a_secure_random_string
+      - JWT_EXPIRES_IN=8h
+    ports:
+      - "3000"
+    depends_on:
+      - postgres
+    networks:
+      - trashnet-net
+
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    container_name: trashnet-web
+    restart: unless-stopped
+    ports:
+      - "80"
+    networks:
+      - trashnet-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: trashnet-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=trashnet
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - trashnet-net
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+
+networks:
+  trashnet-net:
+    driver: bridge
