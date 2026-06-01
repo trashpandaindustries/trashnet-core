@@ -11,9 +11,8 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, './web/src'),
       },
     },
-    root: './web',
     build: {
-      outDir: '../dist',
+      outDir: 'dist',
       emptyOutDir: true,
     },
     server: {
