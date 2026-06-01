@@ -1,12 +1,17 @@
 import express from 'express';
 import { withUser } from './db.js';
-import PQueue from 'p-queue';
 import * as cheerio from 'cheerio';
 
 export const bookmarksRouter = express.Router();
 
-// Queue for scraping with concurrency limit of 2 to be safe
-const queue = new PQueue({ concurrency: 2 });
+let queue: any = null;
+async function getQueue() {
+    if (!queue) {
+        const { default: PQueue } = await import('p-queue');
+        queue = new PQueue({ concurrency: 2 });
+    }
+    return queue;
+}
 
 async function scrapeMetadata(url: string) {
     try {
@@ -127,7 +132,8 @@ bookmarksRouter.post('/', async (req: any, res) => {
         res.status(202).json(bookmark);
 
         // Async scraping
-        queue.add(async () => {
+        const q = await getQueue();
+        q.add(async () => {
             const meta = await scrapeMetadata(url);
             
             await withUser(userId, async (client) => {
