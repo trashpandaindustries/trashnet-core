@@ -1,0 +1,118 @@
+import { Router, Request, Response } from 'express';
+import os from 'os';
+import { requireAuth } from './auth.js';
+import { pool } from './db.js';
+
+export const systemRouter = Router();
+
+// Get settings helper
+async function getSettings() {
+  const { rows } = await pool.query('SELECT key, value FROM settings');
+  const settings: Record<string, any> = {};
+  for (const row of rows) {
+    settings[row.key] = row.value;
+  }
+  return settings;
+}
+
+export async function getSystemStats() {
+  // node:os stats
+  const cpus = os.cpus();
+  const loadavg = os.loadavg();
+  const totalmem = os.totalmem();
+  const freemem = os.freemem();
+  const uptime = os.uptime();
+
+  // Basic representation
+  return {
+    cpuLoad: loadavg, // [1m, 5m, 15m]
+    memory: {
+      total: totalmem,
+      free: freemem,
+      used: totalmem - freemem
+    },
+    uptime: uptime
+    // Disk usage is complex in plain node without spawning 'df' or using 'diskspace' package.
+    // For now we will return a stub or ignore disk usage.
+  };
+}
+
+let cachedDockerData: any = null;
+let lastDockerFetch = 0;
+
+export async function getDockerServices() {
+  const now = Date.now();
+  if (cachedDockerData && (now - lastDockerFetch < 30000)) {
+     return cachedDockerData;
+  }
+
+  try {
+    const settings = await getSettings();
+    const portainerUrl = settings.portainer_url;
+    const portainerToken = settings.portainer_token;
+    const labelFilter = settings.docker_label_filter || 'dashboard.show=true';
+    
+    if (!portainerUrl || !portainerToken) {
+      cachedDockerData = { status: 'unconfigured', services: [] };
+      lastDockerFetch = now;
+      return cachedDockerData;
+    }
+    
+    const res = await fetch(`${portainerUrl}/api/endpoints/1/docker/containers/json?all=1`, {
+      headers: { 'X-API-Key': portainerToken }
+    });
+
+    if (!res.ok) {
+       cachedDockerData = { status: 'error', error: await res.text(), services: [] };
+       lastDockerFetch = now;
+       return cachedDockerData;
+    }
+    
+    const containers = await res.json() as any[];
+    const [filterKey, filterValue] = labelFilter.split('=');
+    
+    const services = containers.filter(c => {
+       const labels = c.Labels || {};
+       if (filterKey && filterValue) {
+           return labels[filterKey] === filterValue;
+       }
+       return true;
+    }).map(c => {
+       const labels = c.Labels || {};
+       let name = c.Names && c.Names.length > 0 ? c.Names[0] : 'unknown';
+       if (name.startsWith('/')) name = name.slice(1);
+       let link = null;
+       for (const key of Object.keys(labels)) {
+         if (key.includes('port')) link = labels[key];
+       }
+       return {
+         id: c.Id,
+         name,
+         state: c.State,
+         status: c.Status,
+         link
+       };
+    });
+    
+    cachedDockerData = { status: 'ok', services };
+    lastDockerFetch = now;
+    return cachedDockerData;
+  } catch (error: any) {
+    console.error('Docker fetch error', error);
+    cachedDockerData = { status: 'error', error: error.message, services: [] };
+    lastDockerFetch = now;
+    return cachedDockerData;
+  }
+}
+
+systemRouter.use(requireAuth);
+
+systemRouter.get('/stats', async (req: Request, res: Response) => {
+  const stats = await getSystemStats();
+  res.json(stats);
+});
+
+systemRouter.get('/docker', async (req: Request, res: Response) => {
+  const result = await getDockerServices();
+  res.json(result);
+});

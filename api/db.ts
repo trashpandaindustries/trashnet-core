@@ -22,7 +22,7 @@ export async function withUser<T>(userId: string, callback: (client: any) => Pro
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(`SET LOCAL app.current_user_id = $1`, [userId]);
+    await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
     const result = await callback(client);
     await client.query('COMMIT');
     return result;
