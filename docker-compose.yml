@@ -6,8 +6,8 @@ services:
     container_name: trashnet-caddy
     restart: unless-stopped
     ports:
-      - "80:80"     # LAN access
-      - "443:443"   # WAN access
+      - "${CADDY_HTTP_PORT:-80}:80"     # LAN access
+      - "${CADDY_HTTPS_PORT:-443}:443"   # WAN access
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data

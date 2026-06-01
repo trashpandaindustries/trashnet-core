@@ -2,17 +2,18 @@
 
 # LAN access (no auth overhead)
 :80 {
-    # Set a custom header so the app knows this is a trusted LAN request
-    header_up X-Trashnet-Context "LAN"
-    
     # API endpoints route to the Node backend
     handle /api/* {
-        reverse_proxy api:3000
+        reverse_proxy api:3000 {
+            header_up X-Trashnet-Context "LAN"
+        }
     }
 
     # All other requests route to the React SPA
     handle {
-        reverse_proxy web:80
+        reverse_proxy web:80 {
+            header_up X-Trashnet-Context "LAN"
+        }
     }
 }
 
@@ -21,13 +22,15 @@
 :443 {
     tls internal # using internal certs for now
 
-    header_up X-Trashnet-Context "WAN"
-
     handle /api/* {
-        reverse_proxy api:3000
+        reverse_proxy api:3000 {
+            header_up X-Trashnet-Context "WAN"
+        }
     }
     
     handle {
-        reverse_proxy web:80
+        reverse_proxy web:80 {
+            header_up X-Trashnet-Context "WAN"
+        }
     }
 }
