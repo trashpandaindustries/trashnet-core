@@ -25,7 +25,6 @@ __MACOSX/
 .LSOverride
 .env
 .gitattributes
-.gitignore
 node_modules
 # Thumbnails
 ._*
