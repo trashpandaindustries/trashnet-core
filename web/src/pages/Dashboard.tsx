@@ -6,6 +6,57 @@ import { DroppableCell } from '../components/DroppableCell';
 import { DraggableModule } from '../components/DraggableModule';
 import { PlusCircle, Activity, Box, LayoutGrid } from 'lucide-react';
 
+import { Bookmark, RefreshCw, ExternalLink } from 'lucide-react';
+
+function BookmarkModule({ refId }: { refId: string }) {
+  const { data: bookmark, isLoading } = useQuery({
+    queryKey: ['bookmarks', refId],
+    queryFn: () => api.get(`/api/bookmarks/${refId}`),
+    refetchInterval: (data) => data?.scrape_status === 'pending' ? 3000 : false
+  });
+
+  if (isLoading) return <div className="text-slate-500 text-sm p-4 animate-pulse shrink-0">Loading...</div>;
+  if (!bookmark) return <div className="text-rose-500 text-sm p-4 shrink-0">Not found</div>;
+
+  const isPending = bookmark.scrape_status === 'pending';
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden group">
+      <div className="flex items-center gap-2 text-indigo-400 font-bold mb-3 shrink-0 uppercase tracking-wider text-xs px-1">
+        <Bookmark size={14} /> Bookmark
+      </div>
+      
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex items-start gap-2 mb-2 shrink-0">
+          {bookmark.favicon_url ? (
+            <img src={bookmark.favicon_url} alt="" className="w-4 h-4 rounded-sm shrink-0 mt-1" />
+          ) : (
+            <div className="w-4 h-4 rounded-sm bg-slate-700 shrink-0 flex items-center justify-center mt-1">
+               <ExternalLink size={8} className="text-slate-400" />
+            </div>
+          )}
+          <a 
+            href={bookmark.url} 
+            target="_blank" 
+            rel="noreferrer" 
+            className="font-medium text-slate-200 hover:text-indigo-400 transition-colors line-clamp-2 leading-snug flex-1"
+          >
+            {bookmark.title || bookmark.url}
+          </a>
+        </div>
+        
+        {isPending ? (
+          <div className="text-xs text-indigo-400 mt-2 flex items-center gap-1.5 px-1 shrink-0"><RefreshCw size={12} className="animate-spin" /> Fetching metadata...</div>
+        ) : (
+          <div className="text-xs text-slate-400 line-clamp-3 leading-relaxed mb-2 flex-1 min-h-0">
+            {bookmark.description}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface ModuleConfig {
   id: string;
   module_type: string;
@@ -172,6 +223,9 @@ export default function Dashboard() {
            )}
          </div>
        );
+    }
+    if (mod.module_type === 'bookmark' && mod.ref_id) {
+       return <BookmarkModule refId={mod.ref_id} />;
     }
     return <div className="text-slate-500 text-xs">Unknown Module {mod.module_type}</div>;
   };
