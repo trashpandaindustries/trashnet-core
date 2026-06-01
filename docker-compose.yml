@@ -26,8 +26,6 @@ services:
       - DATABASE_URL=postgres://user:password@postgres:5432/trashnet
       - JWT_SECRET=change_this_to_a_secure_random_string
       - JWT_EXPIRES_IN=8h
-    ports:
-      - "3000"
     depends_on:
       - postgres
     networks:
@@ -39,8 +37,6 @@ services:
       dockerfile: ./docker/web/Dockerfile
     container_name: trashnet-web
     restart: unless-stopped
-    ports:
-      - "80"
     networks:
       - trashnet-net
 
