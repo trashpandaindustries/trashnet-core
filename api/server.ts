@@ -2,6 +2,9 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { authRouter } from './auth.js';
+import { notesRouter } from './notes.js';
+import { tagsRouter } from './tags.js';
+import { searchRouter } from './search.js';
 
 async function startServer() {
   const app = express();
@@ -11,6 +14,9 @@ async function startServer() {
 
   // API Routes
   app.use('/api/auth', authRouter);
+  app.use('/api/notes', notesRouter);
+  app.use('/api/tags', tagsRouter);
+  app.use('/api/search', searchRouter);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

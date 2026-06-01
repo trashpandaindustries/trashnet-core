@@ -10,7 +10,7 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
-  post: async (url: string, body: any) => {
+  post: async (url: string, body?: any) => {
     const token = localStorage.getItem('token');
     const res = await fetch(url, {
       method: 'POST',
@@ -18,7 +18,31 @@ export const api = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  put: async (url: string, body: any) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  delete: async (url: string) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

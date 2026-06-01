@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import Sidebar from './Sidebar';
 import { api } from '../lib/api';
+import GlobalSearch from './GlobalSearch';
 
 export default function ProtectedRoute() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -48,6 +49,11 @@ export default function ProtectedRoute() {
           <span className="text-slate-100 font-bold tracking-tighter text-lg">trashnet_<span className="text-emerald-500">core</span></span>
           <span className="text-xs border border-slate-700 px-2 py-0.5 rounded text-slate-500">v0.1.0-alpha.1</span>
         </div>
+        
+        <div className="flex-1 flex justify-center px-8">
+          <GlobalSearch />
+        </div>
+
         <div className="flex gap-6 text-[10px] uppercase tracking-widest">
            <div className="flex flex-col items-end">
             <span className="text-slate-600">Operator</span>
