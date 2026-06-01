@@ -19,13 +19,19 @@ interface ModuleConfig {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [wsData, setWsData] = useState<{ stats: any, docker: any } | null>(null);
+  const [wsStatus, setWsStatus] = useState<string>('Connecting...');
   
   // WS Connection
   useEffect(() => {
     const token = localStorage.getItem('token');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/system/live?token=${token}`);
+    const wsUrl = `${protocol}//${window.location.host}/api/system/live?token=${token}`;
+    const ws = new WebSocket(wsUrl);
     
+    ws.onopen = () => setWsStatus('Connected');
+    ws.onclose = (e) => setWsStatus(`Closed: ${e.code} ${e.reason}`);
+    ws.onerror = (err) => setWsStatus('WS Error');
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -119,30 +125,51 @@ export default function Dashboard() {
     }
     if (mod.module_type === 'docker_services') {
        if (!wsData?.docker) return <div className="text-slate-500 text-sm animate-pulse">Waiting for Docker...</div>;
-       if (wsData.docker.status === 'unconfigured') return <div className="text-slate-500 text-sm">Portainer unconfigured.</div>;
        return (
          <div className="flex flex-col h-full text-sm">
            <div className="flex items-center gap-2 text-emerald-400 font-bold mb-4 shrink-0">
              <Box size={16} /> DOCKER SERVICES
+             <div className="ml-auto flex items-center gap-1.5 text-xs font-normal text-slate-500">
+                {wsData.docker.status === 'ok' ? (
+                  <><div className="w-2 h-2 rounded-full bg-emerald-500"></div> <span className="hidden sm:inline">Connected</span></>
+                ) : wsData.docker.status === 'unconfigured' ? (
+                  <><div className="w-2 h-2 rounded-full bg-amber-500"></div> <span className="hidden sm:inline">Unconfigured</span></>
+                ) : (
+                  <><div className="w-2 h-2 rounded-full bg-rose-500" title={wsData.docker.error || 'Connection error'}></div> <span className="hidden sm:inline" title={wsData.docker.error || 'Connection error'}>Error</span></>
+                )}
+             </div>
            </div>
-           <div className="overflow-y-auto pr-2 space-y-2 flex-1">
-             {wsData.docker.services.map((svc: any) => (
-                <div key={svc.id} className="flex justify-between items-center p-2 rounded bg-slate-950/50 border border-slate-800/80">
-                   <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${svc.state === 'running' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-                      <span className="text-slate-300 font-medium truncate max-w-[120px]">{svc.name}</span>
-                   </div>
-                   {svc.link ? (
-                      <a href={`http://${window.location.hostname}:${svc.link}`} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-emerald-400 text-xs">
-                         :{svc.link}
-                      </a>
-                   ) : (
-                      <span className="text-slate-600 text-[10px] uppercase tracking-wider">{svc.state}</span>
-                   )}
-                </div>
-             ))}
-             {wsData.docker.services.length === 0 && <div className="text-slate-500 text-xs">No dashboard.show=true containers.</div>}
-           </div>
+           
+           {wsData.docker.status === 'unconfigured' ? (
+             <div className="text-slate-500 text-xs">Portainer connection is unconfigured.</div>
+           ) : wsData.docker.status === 'error' ? (
+             <div className="text-rose-500/80 text-xs break-words">{wsData.docker.error || 'Failed to connect to Portainer.'}</div>
+           ) : (
+             <div className="overflow-y-auto pr-2 space-y-2 flex-1 relative">
+               {wsData.docker.services.map((svc: any) => (
+                  <div key={svc.id} className="flex justify-between items-center p-3 rounded bg-slate-950/50 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                     <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                           <div className={`w-2 h-2 shrink-0 rounded-full ${svc.state === 'running' ? 'bg-emerald-500' : 'bg-rose-500'}`} title={svc.state}></div>
+                           {svc.link ? (
+                              <a href={svc.link} target="_blank" rel="noreferrer" className="text-slate-200 text-sm font-medium truncate hover:text-emerald-400 transition-colors">
+                                 {svc.name}
+                              </a>
+                           ) : (
+                              <span className="text-slate-200 text-sm font-medium truncate">{svc.name}</span>
+                           )}
+                        </div>
+                        {svc.description && (
+                           <div className="text-slate-500 text-xs truncate pl-4">
+                              {svc.description}
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               ))}
+               {wsData.docker.services.length === 0 && <div className="text-slate-500 text-xs text-center py-4">No dashboard.show=true containers found.</div>}
+             </div>
+           )}
          </div>
        );
     }
@@ -159,6 +186,7 @@ export default function Dashboard() {
            <LayoutGrid size={20} className="text-emerald-500" />
            Dashboard
          </h1>
+         <span className="text-xs text-slate-500">{wsStatus}</span>
          <div className="flex gap-2">
            {!hasStats && (
               <button 

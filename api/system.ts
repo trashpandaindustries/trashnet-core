@@ -49,16 +49,22 @@ export async function getDockerServices() {
   try {
     const settings = await getSettings();
     const portainerUrl = settings.portainer_url;
+    const portainerEnv = settings.portainer_env || 1;
     const portainerToken = settings.portainer_token;
     const labelFilter = settings.docker_label_filter || 'dashboard.show=true';
+    const ignoreSsl = settings.portainer_ignore_ssl === 'true' || settings.portainer_ignore_ssl === true;
     
+    if (ignoreSsl) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
     if (!portainerUrl || !portainerToken) {
       cachedDockerData = { status: 'unconfigured', services: [] };
       lastDockerFetch = now;
       return cachedDockerData;
     }
     
-    const res = await fetch(`${portainerUrl}/api/endpoints/1/docker/containers/json?all=1`, {
+    const res = await fetch(`${portainerUrl}/api/endpoints/${portainerEnv}/docker/containers/json?all=1`, {
       headers: { 'X-API-Key': portainerToken }
     });
 
@@ -79,18 +85,20 @@ export async function getDockerServices() {
        return true;
     }).map(c => {
        const labels = c.Labels || {};
-       let name = c.Names && c.Names.length > 0 ? c.Names[0] : 'unknown';
+       let name = labels['dashboard.name'] || (c.Names && c.Names.length > 0 ? c.Names[0] : 'unknown');
        if (name.startsWith('/')) name = name.slice(1);
-       let link = null;
-       for (const key of Object.keys(labels)) {
-         if (key.includes('port')) link = labels[key];
-       }
+       const link = labels['dashboard.url'] || null;
+       const icon = labels['dashboard.icon'] || null;
+       const description = labels['dashboard.description'] || null;
+
        return {
          id: c.Id,
          name,
          state: c.State,
          status: c.Status,
-         link
+         link,
+         icon,
+         description
        };
     });
     

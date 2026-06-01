@@ -1,6 +1,7 @@
 import express from 'express';
-import expressWs from 'express-ws';
+import { WebSocketServer } from 'ws';
 import path from 'path';
+import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import { authRouter, requireAuth } from './auth.js';
 import { notesRouter } from './notes.js';
@@ -11,9 +12,8 @@ import { systemRouter, getSystemStats, getDockerServices } from './system.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
-  const appBase = express();
-  // expressWs mutates the app
-  const { app } = expressWs(appBase);
+  const app = express();
+  const server = http.createServer(app);
   const PORT = 3000;
 
   app.use(express.json());
@@ -26,23 +26,36 @@ async function startServer() {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/system', systemRouter);
 
-  // WebSocket endpoint
-  app.ws('/api/system/live', (ws, req) => {
-    // Quick auth check using query param or cookie could be done. 
-    // Usually standard auth header isn't sent in WebSocket API browser. 
-    // We can rely on token passing via query, e.g. ?token=...
-    const token = req.query.token as string;
+  // WebSocket Server
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (req, socket, head) => {
+    if (req.url && req.url.startsWith('/api/system/live')) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+    }
+  });
+
+  wss.on('connection', (ws: any, req: any) => {
+    console.log('[WS] Connection attempt');
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    
     if (!token) {
+        console.log('[WS] Rejected: Auth missing');
         ws.close(1008, "Auth missing");
         return;
     }
     try {
         jwt.verify(token, process.env.JWT_SECRET || 'fallback');
     } catch {
+        console.log('[WS] Rejected: Auth invalid');
         ws.close(1008, "Auth invalid");
         return;
     }
 
+    console.log('[WS] Client connected successfully');
     let isAlive = true;
     let interval: NodeJS.Timeout;
 
@@ -58,17 +71,15 @@ async function startServer() {
                 }));
             }
         } catch (error) {
-            console.error('WS Error:', error);
+            console.error('[WS] Error:', error);
         }
     };
 
-    // Initial push
     pushData();
-
-    // Push every 10 seconds
     interval = setInterval(pushData, 10000);
 
     ws.on('close', () => {
+        console.log('[WS] Client disconnected');
         isAlive = false;
         clearInterval(interval);
     });
@@ -83,15 +94,13 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    const webPath = path.join(distPath, 'web'); // might rely on how build puts out index.html
-    // To match typical setup: express.static(distPath)
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
