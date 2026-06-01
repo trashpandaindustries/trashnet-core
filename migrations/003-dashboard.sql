@@ -5,11 +5,13 @@ CREATE TABLE settings (
 );
 
 INSERT INTO settings (key, value) VALUES
-  ('portainer_url', '"http://portainer:9000"'),
-  ('portainer_token', '""'),
-  ('docker_label_filter', '"dashboard.show=true"'),
-  ('stats_refresh_interval_ms', '10000'),
-  ('docker_refresh_interval_ms', '30000');
+  ('portainer_url',              '"https://192.168.1.69:9443"'),
+  ('portainer_token',            '""'),
+  ('docker_label_filter',        '"dashboard.show=true"'),
+  ('stats_refresh_interval_ms',  '10000'),
+  ('docker_refresh_interval_ms', '30000'),
+  ('portainer_env',              '3'),
+  ('portainer_ignore_ssl', 'true')
 
 CREATE TABLE dashboard_modules (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
