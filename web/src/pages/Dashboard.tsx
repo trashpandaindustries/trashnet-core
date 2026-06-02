@@ -7,12 +7,68 @@ import { DraggableModule } from '../components/DraggableModule';
 import { PlusCircle, Activity, Box, LayoutGrid } from 'lucide-react';
 
 import { Bookmark, RefreshCw, ExternalLink } from 'lucide-react';
+import { Kanban as KanbanIcon, Calendar, CheckCircle2 } from 'lucide-react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+function KanbanItemModule({ refId }: { refId: string }) {
+  const { data: item, isLoading } = useQuery({
+    queryKey: ['kanbanItem', refId],
+    queryFn: async () => {
+      const res = await api.get(`/api/kanban/items/${refId}`);
+      if (!res.ok) throw new Error('Failed to fetch kanban item');
+      return res.json();
+    }
+  });
+
+  if (isLoading) return <div className="text-slate-500 text-sm p-4 animate-pulse shrink-0">Loading...</div>;
+  if (!item) return <div className="text-rose-500 text-sm p-4 shrink-0">Not found</div>;
+
+  const priorityColors: Record<string, string> = {
+      low: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+      medium: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+      high: 'text-rose-400 bg-rose-400/10 border-rose-400/20'
+  };
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden group">
+      <div className="flex items-center gap-2 text-indigo-400 font-bold mb-3 shrink-0 uppercase tracking-wider text-xs px-1">
+        <CheckCircle2 size={14} /> Todo
+      </div>
+      
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <h4 className="font-semibold text-slate-200 text-base leading-tight mb-2 shrink-0">{item.title}</h4>
+        
+        {item.description && (
+          <div className="text-xs text-slate-400 line-clamp-3 leading-relaxed mb-3 min-h-0 flex-1 markdown-body-micro">
+             <Markdown remarkPlugins={[remarkGfm]}>{item.description}</Markdown>
+          </div>
+        )}
+        
+        <div className="flex flex-wrap items-center gap-2 mt-auto shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${priorityColors[item.priority] || priorityColors.medium}`}>
+              {item.priority}
+          </span>
+          {item.due_date && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-slate-700 bg-slate-700/50 text-slate-300 flex items-center gap-1">
+                  <Calendar size={10} />
+                  {new Date(item.due_date).toLocaleDateString()}
+              </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BookmarkModule({ refId }: { refId: string }) {
   const { data: bookmark, isLoading } = useQuery({
     queryKey: ['bookmarks', refId],
-    queryFn: () => api.get(`/api/bookmarks/${refId}`),
-    refetchInterval: (data) => data?.scrape_status === 'pending' ? 3000 : false
+    queryFn: async () => {
+       const res = await api.get(`/api/bookmarks/${refId}`);
+       return res.json();
+    },
+    refetchInterval: (query) => query.state.data?.scrape_status === 'pending' ? 3000 : false
   });
 
   if (isLoading) return <div className="text-slate-500 text-sm p-4 animate-pulse shrink-0">Loading...</div>;
@@ -226,6 +282,9 @@ export default function Dashboard() {
     }
     if (mod.module_type === 'bookmark' && mod.ref_id) {
        return <BookmarkModule refId={mod.ref_id} />;
+    }
+    if (mod.module_type === 'kanban_item' && mod.ref_id) {
+       return <KanbanItemModule refId={mod.ref_id} />;
     }
     return <div className="text-slate-500 text-xs">Unknown Module {mod.module_type}</div>;
   };

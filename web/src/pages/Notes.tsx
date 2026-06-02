@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle } from 'lucide-react';
+import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban } from 'lucide-react';
 
 interface Tag {
   id: string;
@@ -89,6 +89,18 @@ export default function Notes() {
       queryClient.invalidateQueries({ queryKey: ['scratchpad'] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       setActiveNote(null);
+    }
+  });
+
+  const convertToKanban = useMutation({
+    mutationFn: async () => {
+       const noteId = activeNote?.id;
+       if (!noteId) return;
+       return api.post(`/api/notes/${noteId}/convert-to-kanban`);
+    },
+    onSuccess: () => {
+       // Ideally we'd show a success toast or direct to kanban board
+       alert('Added to Kanban!');
     }
   });
 
@@ -266,15 +278,24 @@ export default function Notes() {
                  <Archive size={14} /> Archive
                </button>
              ) : (
-               <button 
-                 onClick={() => {
-                   if(confirm('Delete this note?')) deleteNote.mutate(activeNote.id);
-                 }}
-                 disabled={deleteNote.isPending}
-                 className="flex items-center gap-2 text-xs bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-3 py-1.5 rounded-md transition-colors"
-               >
-                 <X size={14} /> Delete
-               </button>
+               <>
+                 <button 
+                     onClick={() => convertToKanban.mutate()}
+                     disabled={convertToKanban.isPending}
+                     className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                 >
+                     <Kanban size={14} /> Send to Kanban
+                 </button>
+                 <button 
+                   onClick={() => {
+                     if(confirm('Delete this note?')) deleteNote.mutate(activeNote.id);
+                   }}
+                   disabled={deleteNote.isPending}
+                   className="flex items-center gap-2 text-xs bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-3 py-1.5 rounded-md transition-colors"
+                 >
+                   <X size={14} /> Delete
+                 </button>
+               </>
              )}
           </div>
         </div>

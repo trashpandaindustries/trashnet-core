@@ -10,6 +10,7 @@ import { searchRouter } from './search.js';
 import { dashboardRouter } from './dashboard.js';
 import { systemRouter, getSystemStats, getDockerServices } from './system.js';
 import { bookmarksRouter } from './bookmarks.js';
+import { kanbanRouter } from './kanban.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
@@ -27,6 +28,7 @@ async function startServer() {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/system', systemRouter);
   app.use('/api/bookmarks', requireAuth, bookmarksRouter);
+  app.use('/api/kanban', requireAuth, kanbanRouter);
 
   // WebSocket Server
   const wss = new WebSocketServer({ noServer: true });

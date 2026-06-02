@@ -213,6 +213,55 @@ notesRouter.post('/:id/tags/:tagId', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/notes/:id/convert-to-kanban
+notesRouter.post('/:id/convert-to-kanban', async (req: Request, res: Response) => {
+  const userId = (req as any).user.sub;
+  const { id } = req.params;
+  const { column_id } = req.body;
+  try {
+    const item = await withUser(userId, async (client) => {
+      // Get the note
+      const noteRes = await client.query('SELECT title, content FROM notes WHERE id = $1', [id]);
+      if (noteRes.rows.length === 0) return null;
+      const note = noteRes.rows[0];
+
+      // Use provided column_id or find the first column (e.g., 'To Do' or lowest position)
+      let targetColumnId = column_id;
+      if (!targetColumnId) {
+          const colRes = await client.query('SELECT id FROM kanban_columns ORDER BY position ASC LIMIT 1');
+          if (colRes.rows.length > 0) {
+              targetColumnId = colRes.rows[0].id;
+          } else {
+              throw new Error('No kanban columns available');
+          }
+      }
+
+      // Create kanban item
+      const itemRes = await client.query(`
+        INSERT INTO kanban_items (user_id, column_id, title, description, priority)
+        VALUES ($1, $2, $3, $4, 'medium')
+        RETURNING *
+      `, [userId, targetColumnId, note.title, note.content]);
+      
+      const newItem = itemRes.rows[0];
+      
+      // Copy tags from note to kanban item
+      await client.query(`
+        INSERT INTO kanban_item_tags (item_id, tag_id)
+        SELECT $1, tag_id FROM note_tags WHERE note_id = $2
+      `, [newItem.id, id]);
+        
+      return newItem;
+    });
+
+    if (!item) return res.status(404).json({ error: 'Note not found' });
+    res.status(201).json(item);
+  } catch (error) {
+    console.error('Error converting note to kanban:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /api/notes/:id/tags/:tagId
 notesRouter.delete('/:id/tags/:tagId', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;

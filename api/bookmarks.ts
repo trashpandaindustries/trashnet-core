@@ -110,24 +110,27 @@ bookmarksRouter.post('/', async (req: any, res) => {
         const { url, show_on_dashboard } = req.body;
         if (!url) return res.status(400).json({ error: 'URL required' });
 
+        const userId = req.user.sub;
+
         const result = await withUser(req.user.sub, async (client) => {
-            const r = await client.query(`
-                INSERT INTO bookmarks (url, show_on_dashboard, scrape_status)
-                VALUES ($1, $2, 'pending')
-                RETURNING *
-            `, [url, show_on_dashboard || false]);
-            
-            if (show_on_dashboard) {
-                await client.query(`
-                    INSERT INTO dashboard_modules (module_type, ref_id)
-                    VALUES ('bookmark', $1)
-                `, [r.rows[0].id]);
-            }
+        // After
+        const r = await client.query(`
+            INSERT INTO bookmarks (user_id, url, show_on_dashboard, scrape_status)
+            VALUES ($1, $2, $3, 'pending')
+            RETURNING *
+        `, [userId, url, show_on_dashboard || false]);
+
+        if (show_on_dashboard) {
+            await client.query(`
+                INSERT INTO dashboard_modules (user_id, module_type, ref_id)
+                VALUES ($1, 'bookmark', $2)
+            `, [userId, r.rows[0].id]);
+        }
             return r;
         });
 
         const bookmark = result.rows[0];
-        const userId = req.user.sub;
+
         
         res.status(202).json(bookmark);
 
@@ -153,7 +156,7 @@ bookmarksRouter.post('/', async (req: any, res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'Server error - post bookmark' });
     }
 });
 
@@ -162,9 +165,9 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
     try {
         const { title, description, show_on_dashboard } = req.body;
         const id = req.params.id;
+        const userId = req.user.sub; // <-- here, not inside the callback
         
-        const result = await withUser(req.user.sub, async (client) => {
-            // Get old state to handle toggle show_on_dashboard
+        const result = await withUser(userId, async (client) => {
             const old = await client.query('SELECT show_on_dashboard FROM bookmarks WHERE id = $1', [id]);
             if (old.rows.length === 0) return null;
             
@@ -179,9 +182,15 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
 
             if (show_on_dashboard !== undefined && old.rows[0].show_on_dashboard !== show_on_dashboard) {
                 if (show_on_dashboard) {
-                    await client.query(`INSERT INTO dashboard_modules (module_type, ref_id) VALUES ('bookmark', $1)`, [id]);
+                    await client.query(
+                        `INSERT INTO dashboard_modules (module_type, ref_id, user_id) VALUES ('bookmark', $1, $2)`,
+                        [id, userId]
+                    );
                 } else {
-                    await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1`, [id]);
+                    await client.query(
+                        `DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1`,
+                        [id]
+                    );
                 }
             }
             return r;
@@ -191,7 +200,7 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
         res.json(result.rows[0]);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'Server error - update bookmark' });
     }
 });
 
