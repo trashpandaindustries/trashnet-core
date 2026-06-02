@@ -15,9 +15,9 @@ notesRouter.get('/scratchpad', async (req: Request, res: Response) => {
       let { rows } = await client.query(`
         SELECT id, title, content, updated_at 
         FROM notes 
-        WHERE is_scratchpad = true
+        WHERE is_scratchpad = true AND user_id = $1
         LIMIT 1
-      `);
+      `, [userId]);
       if (rows.length === 0) {
         // Technically shouldn't happen if seeded, but create if missing
         const insertRes = await client.query(`
@@ -45,9 +45,9 @@ notesRouter.put('/scratchpad', async (req: Request, res: Response) => {
       const { rows } = await client.query(`
         UPDATE notes 
         SET content = $1, updated_at = NOW() 
-        WHERE is_scratchpad = true 
+        WHERE is_scratchpad = true AND user_id = $2
         RETURNING id, title, content, updated_at
-      `, [content]);
+      `, [content, userId]);
       return rows[0];
     });
     res.json(result);
@@ -65,8 +65,8 @@ notesRouter.post('/scratchpad/archive', async (req: Request, res: Response) => {
     const result = await withUser(userId, async (client) => {
       // Get current scratchpad content
       const { rows: scRows } = await client.query(`
-        SELECT content FROM notes WHERE is_scratchpad = true
-      `);
+        SELECT content FROM notes WHERE is_scratchpad = true AND user_id = $1
+      `, [userId]);
       const content = scRows[0]?.content || '';
 
       // Title extraction (first line)
@@ -87,8 +87,8 @@ notesRouter.post('/scratchpad/archive', async (req: Request, res: Response) => {
       await client.query(`
         UPDATE notes 
         SET content = NULL, updated_at = NOW() 
-        WHERE is_scratchpad = true
-      `);
+        WHERE is_scratchpad = true AND user_id = $1
+      `, [userId]);
 
       return newNotes[0];
     });
@@ -113,10 +113,10 @@ notesRouter.get('/', async (req: Request, res: Response) => {
         FROM notes n
         LEFT JOIN note_tags nt ON n.id = nt.note_id
         LEFT JOIN tags t ON t.id = nt.tag_id
-        WHERE n.is_scratchpad = false AND n.is_archived = true
+        WHERE n.is_scratchpad = false AND n.is_archived = true AND n.user_id = $1
         GROUP BY n.id
         ORDER BY n.updated_at DESC
-      `);
+      `, [userId]);
       return rows;
     });
     res.json(notes);
@@ -141,9 +141,9 @@ notesRouter.get('/:id', async (req: Request, res: Response) => {
         FROM notes n
         LEFT JOIN note_tags nt ON n.id = nt.note_id
         LEFT JOIN tags t ON t.id = nt.tag_id
-        WHERE n.id = $1
+        WHERE n.id = $1 AND n.user_id = $2
         GROUP BY n.id
-      `, [id]);
+      `, [id, userId]);
       return rows[0];
     });
     if (!note) return res.status(404).json({ error: 'Note not found' });
@@ -164,9 +164,9 @@ notesRouter.put('/:id', async (req: Request, res: Response) => {
       const { rows } = await client.query(`
         UPDATE notes
         SET title = COALESCE($1, title), content = COALESCE($2, content), updated_at = NOW()
-        WHERE id = $3
+        WHERE id = $3 AND user_id = $4
         RETURNING *
-      `, [title, content, id]);
+      `, [title, content, id, userId]);
       return rows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Note not found' });
@@ -183,7 +183,7 @@ notesRouter.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const deleted = await withUser(userId, async (client) => {
-      const { rowCount } = await client.query('DELETE FROM notes WHERE id = $1 AND is_scratchpad = false', [id]);
+      const { rowCount } = await client.query('DELETE FROM notes WHERE id = $1 AND user_id = $2 AND is_scratchpad = false', [id, userId]);
       return rowCount > 0;
     });
     if (!deleted) return res.status(404).json({ error: 'Note not found or cannot delete scratchpad' });
@@ -221,14 +221,14 @@ notesRouter.post('/:id/convert-to-kanban', async (req: Request, res: Response) =
   try {
     const item = await withUser(userId, async (client) => {
       // Get the note
-      const noteRes = await client.query('SELECT title, content FROM notes WHERE id = $1', [id]);
+      const noteRes = await client.query('SELECT title, content FROM notes WHERE id = $1 AND user_id = $2', [id, userId]);
       if (noteRes.rows.length === 0) return null;
       const note = noteRes.rows[0];
 
       // Use provided column_id or find the first column (e.g., 'To Do' or lowest position)
       let targetColumnId = column_id;
       if (!targetColumnId) {
-          const colRes = await client.query('SELECT id FROM kanban_columns ORDER BY position ASC LIMIT 1');
+          const colRes = await client.query('SELECT id FROM kanban_columns WHERE user_id = $1 ORDER BY position ASC LIMIT 1', [userId]);
           if (colRes.rows.length > 0) {
               targetColumnId = colRes.rows[0].id;
           } else {

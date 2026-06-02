@@ -11,7 +11,7 @@ tagsRouter.get('/', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
   try {
     const tags = await withUser(userId, async (client) => {
-      const { rows } = await client.query('SELECT * FROM tags ORDER BY name ASC');
+      const { rows } = await client.query('SELECT * FROM tags WHERE user_id = $1 ORDER BY name ASC', [userId]);
       return rows;
     });
     res.json(tags);
@@ -58,9 +58,9 @@ tagsRouter.put('/:id', async (req: Request, res: Response) => {
       const { rows } = await client.query(`
         UPDATE tags
         SET name = COALESCE($1, name), color = COALESCE($2, color)
-        WHERE id = $3
+        WHERE id = $3 AND user_id = $4
         RETURNING *
-      `, [name, color, id]);
+      `, [name, color, id, userId]);
       return rows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Tag not found' });
@@ -81,7 +81,7 @@ tagsRouter.delete('/:id', async (req: Request, res: Response) => {
   
   try {
     const deleted = await withUser(userId, async (client) => {
-      const { rowCount } = await client.query('DELETE FROM tags WHERE id = $1', [id]);
+      const { rowCount } = await client.query('DELETE FROM tags WHERE id = $1 AND user_id = $2', [id, userId]);
       return rowCount > 0;
     });
     if (!deleted) return res.status(404).json({ error: 'Tag not found' });

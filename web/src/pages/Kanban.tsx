@@ -227,10 +227,11 @@ export default function Kanban() {
       }
   };
 
-  const filteredItems = useMemo(() => {
-     if (!selectedTag) return data.items;
-     return data.items.filter((i: any) => i.tags?.some((t: any) => t.name === selectedTag));
-  }, [data.items, selectedTag]);
+    const filteredItems = useMemo(() => {
+        const itemsList = data?.items || [];
+        if (!selectedTag) return itemsList;
+        return itemsList.filter((i: any) => i.tags?.some((t: any) => t.name === selectedTag));
+    }, [data?.items, selectedTag]);
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-200">
@@ -248,7 +249,7 @@ export default function Kanban() {
                         className="bg-slate-800 border border-slate-700 rounded-md px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
                     >
                         <option value="">All Tags</option>
-                        {tags.map((t: any) => (
+                        {(Array.isArray(tags) ? tags : []).map((t: any) => (
                         <option key={t.id} value={t.name}>{t.name}</option>
                         ))}
                     </select>
@@ -264,7 +265,7 @@ export default function Kanban() {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    {data.columns.map((col: any) => (
+                    {(data?.columns || []).map((col: any) => (
                         <div key={col.id} className="h-full flex flex-col">
                             <KanbanColumn 
                                 column={col} 

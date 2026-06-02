@@ -9,7 +9,7 @@ kanbanRouter.get('/board', async (req: any, res) => {
         const userId = req.user.sub;
         
         await withUser(userId, async (client) => {
-            const colsResult = await client.query('SELECT * FROM kanban_columns ORDER BY position ASC');
+            const colsResult = await client.query('SELECT * FROM kanban_columns WHERE user_id = $1 ORDER BY position ASC', [userId]);
             
             const itemsResult = await client.query(`
                 SELECT i.*, 
@@ -17,9 +17,10 @@ kanbanRouter.get('/board', async (req: any, res) => {
                 FROM kanban_items i
                 LEFT JOIN kanban_item_tags it ON i.id = it.item_id
                 LEFT JOIN tags t ON it.tag_id = t.id
+                WHERE i.user_id = $1
                 GROUP BY i.id
                 ORDER BY i.created_at DESC
-            `);
+            `, [userId]);
             
             res.json({
                 columns: colsResult.rows,
@@ -65,14 +66,14 @@ kanbanRouter.put('/columns/:id', async (req: any, res) => {
         const userId = req.user.sub;
         
         const updated = await withUser(userId, async (client) => {
-            const current = await client.query('SELECT * FROM kanban_columns WHERE id = $1', [colId]);
+            const current = await client.query('SELECT * FROM kanban_columns WHERE id = $1 AND user_id = $2', [colId, userId]);
             if (current.rows.length === 0) return null;
             
             return client.query(`
                 UPDATE kanban_columns 
                 SET name = COALESCE($1, name), position = COALESCE($2, position)
-                WHERE id = $3 RETURNING *
-            `, [name, position, colId]);
+                WHERE id = $3 AND user_id = $4 RETURNING *
+            `, [name, position, colId, userId]);
         });
         
         if (!updated) return res.status(404).json({ error: 'Not found' });
@@ -90,7 +91,7 @@ kanbanRouter.delete('/columns/:id', async (req: any, res) => {
         const userId = req.user.sub;
         
         const deleted = await withUser(userId, async (client) => {
-            const r = await client.query('DELETE FROM kanban_columns WHERE id = $1 RETURNING id', [colId]);
+            const r = await client.query('DELETE FROM kanban_columns WHERE id = $1 AND user_id = $2 RETURNING id', [colId, userId]);
             return r.rowCount > 0;
         });
         
@@ -155,15 +156,17 @@ kanbanRouter.put('/items/:id', async (req: any, res) => {
         if (req.body.show_on_dashboard !== undefined) { updates.push(`show_on_dashboard = $${pidx++}`); values.push(req.body.show_on_dashboard); }
         
         values.push(itemId);
+        values.push(userId);
+        const userIdPidx = pidx + 1;
 
         const updated = await withUser(userId, async (client) => {
-            const old = await client.query('SELECT show_on_dashboard FROM kanban_items WHERE id = $1', [itemId]);
+            const old = await client.query('SELECT show_on_dashboard FROM kanban_items WHERE id = $1 AND user_id = $2', [itemId, userId]);
             if (old.rows.length === 0) return null;
             
             const r = await client.query(`
                 UPDATE kanban_items 
                 SET ${updates.join(', ')}
-                WHERE id = $${pidx}
+                WHERE id = $${pidx} AND user_id = $${userIdPidx}
                 RETURNING *
             `, values);
 
@@ -171,7 +174,7 @@ kanbanRouter.put('/items/:id', async (req: any, res) => {
                 if (req.body.show_on_dashboard) {
                     await client.query(`INSERT INTO dashboard_modules (user_id, module_type, ref_id) VALUES ($1, 'kanban_item', $2)`, [userId, itemId]);
                 } else {
-                    await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'kanban_item' AND ref_id = $1`, [itemId]);
+                    await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'kanban_item' AND ref_id = $1 AND user_id = $2`, [itemId, userId]);
                 }
             }
             return r;
@@ -192,9 +195,9 @@ kanbanRouter.delete('/items/:id', async (req: any, res) => {
         const userId = req.user.sub;
         
         const deleted = await withUser(userId, async (client) => {
-            const r = await client.query('DELETE FROM kanban_items WHERE id = $1 RETURNING id', [itemId]);
+            const r = await client.query('DELETE FROM kanban_items WHERE id = $1 AND user_id = $2 RETURNING id', [itemId, userId]);
             if (r.rowCount > 0) {
-                await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'kanban_item' AND ref_id = $1`, [itemId]);
+                await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'kanban_item' AND ref_id = $1 AND user_id = $2`, [itemId, userId]);
             }
             return r.rowCount > 0;
         });
@@ -245,9 +248,9 @@ kanbanRouter.get('/items/:id', async (req: any, res) => {
                 FROM kanban_items i
                 LEFT JOIN kanban_item_tags it ON i.id = it.item_id
                 LEFT JOIN tags t ON it.tag_id = t.id
-                WHERE i.id = $1
+                WHERE i.id = $1 AND i.user_id = $2
                 GROUP BY i.id
-            `, [req.params.id]);
+            `, [req.params.id, req.user.sub]);
         });
         
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });

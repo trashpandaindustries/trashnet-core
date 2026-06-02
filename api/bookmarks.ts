@@ -52,10 +52,10 @@ bookmarksRouter.get('/', async (req: any, res) => {
             FROM bookmarks b
             LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
             LEFT JOIN tags t ON bt.tag_id = t.id
-            WHERE 1=1
+            WHERE b.user_id = $1
         `;
-        const params: any[] = [];
-        let paramCount = 1;
+        const params: any[] = [req.user.sub];
+        let paramCount = 2;
 
         if (tag) {
             queryStr += ` AND EXISTS (SELECT 1 FROM bookmark_tags bt2 JOIN tags t2 ON bt2.tag_id = t2.id WHERE bt2.bookmark_id = b.id AND t2.name = $${paramCount++})`;
@@ -91,9 +91,9 @@ bookmarksRouter.get('/:id', async (req: any, res) => {
                 FROM bookmarks b
                 LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
                 LEFT JOIN tags t ON bt.tag_id = t.id
-                WHERE b.id = $1
+                WHERE b.id = $1 AND b.user_id = $2
                 GROUP BY b.id
-            `, [req.params.id]);
+            `, [req.params.id, req.user.sub]);
         });
         
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -168,7 +168,7 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
         const userId = req.user.sub; // <-- here, not inside the callback
         
         const result = await withUser(userId, async (client) => {
-            const old = await client.query('SELECT show_on_dashboard FROM bookmarks WHERE id = $1', [id]);
+            const old = await client.query('SELECT show_on_dashboard FROM bookmarks WHERE id = $1 AND user_id = $2', [id, userId]);
             if (old.rows.length === 0) return null;
             
             const r = await client.query(`
@@ -176,9 +176,9 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
                 SET title = COALESCE($1, title), 
                     description = COALESCE($2, description),
                     show_on_dashboard = COALESCE($3, show_on_dashboard)
-                WHERE id = $4
+                WHERE id = $4 AND user_id = $5
                 RETURNING *
-            `, [title, description, show_on_dashboard, id]);
+            `, [title, description, show_on_dashboard, id, userId]);
 
             if (show_on_dashboard !== undefined && old.rows[0].show_on_dashboard !== show_on_dashboard) {
                 if (show_on_dashboard) {
@@ -188,8 +188,8 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
                     );
                 } else {
                     await client.query(
-                        `DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1`,
-                        [id]
+                        `DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1 AND user_id = $2`,
+                        [id, userId]
                     );
                 }
             }
@@ -208,10 +208,10 @@ bookmarksRouter.put('/:id', async (req: any, res) => {
 bookmarksRouter.delete('/:id', async (req: any, res) => {
     try {
         const deleted = await withUser(req.user.sub, async (client) => {
-            const r = await client.query(`DELETE FROM bookmarks WHERE id = $1 RETURNING id`, [req.params.id]);
+            const r = await client.query(`DELETE FROM bookmarks WHERE id = $1 AND user_id = $2 RETURNING id`, [req.params.id, req.user.sub]);
             if (r.rows.length > 0) {
                 // Remove module if it's there
-                await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1`, [req.params.id]);
+                await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'bookmark' AND ref_id = $1 AND user_id = $2`, [req.params.id, req.user.sub]);
             }
             return r.rowCount > 0;
         });

@@ -10,7 +10,7 @@ dashboardRouter.get('/modules', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
   try {
     const modules = await withUser(userId, async (client) => {
-      const { rows } = await client.query('SELECT * FROM dashboard_modules ORDER BY updated_at ASC');
+      const { rows } = await client.query('SELECT * FROM dashboard_modules WHERE user_id = $1 ORDER BY updated_at ASC', [userId]);
       return rows;
     });
     res.json(modules);
@@ -60,9 +60,9 @@ dashboardRouter.put('/modules/:id', async (req: Request, res: Response) => {
             width = COALESCE($3, width),
             height = COALESCE($4, height),
             updated_at = NOW()
-        WHERE id = $5
+        WHERE id = $5 AND user_id = $6
         RETURNING *
-      `, [pos_x, pos_y, width, height, id]);
+      `, [pos_x, pos_y, width, height, id, userId]);
       return rows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Module not found' });
@@ -78,7 +78,7 @@ dashboardRouter.delete('/modules/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const deleted = await withUser(userId, async (client) => {
-      const { rowCount } = await client.query('DELETE FROM dashboard_modules WHERE id = $1', [id]);
+      const { rowCount } = await client.query('DELETE FROM dashboard_modules WHERE id = $1 AND user_id = $2', [id, userId]);
       return rowCount > 0;
     });
     if (!deleted) return res.status(404).json({ error: 'Module not found' });
