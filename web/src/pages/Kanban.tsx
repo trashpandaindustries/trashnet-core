@@ -139,7 +139,7 @@ export default function Kanban() {
     queryKey: ['kanbanBoard'],
     queryFn: async () => {
       const res = await api.get('/api/kanban/board');
-      return res.json();
+      return res;
     }
   });
 
@@ -147,7 +147,7 @@ export default function Kanban() {
     queryKey: ['tags'],
     queryFn: async () => {
       const res = await api.get('/api/tags');
-      return res.json();
+      return res;
     }
   });
 

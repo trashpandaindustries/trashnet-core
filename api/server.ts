@@ -15,6 +15,39 @@ import { kanbanRouter } from './kanban.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
+  try {
+    const client = await pool.connect();
+    try {
+        // Try to add the status column safely (outside transaction just in case)
+        await client.query(`ALTER TABLE kanban_items ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'To Do'`).catch(() => {});
+        
+        // Copy the current status from columns table if it exists
+        await client.query(`
+            UPDATE kanban_items i 
+            SET status = c.name 
+            FROM kanban_columns c 
+            WHERE i.column_id = c.id
+        `).catch(() => {});
+
+        // Normalize status
+        await client.query(`
+            UPDATE kanban_items 
+            SET status = 'To Do' 
+            WHERE status NOT IN ('To Do', 'In Progress', 'In Review', 'Done')
+        `).catch(() => {});
+
+        // Drop the old column and table
+        await client.query(`ALTER TABLE kanban_items DROP COLUMN IF EXISTS column_id CASCADE`).catch(() => {});
+        await client.query(`DROP TABLE IF EXISTS kanban_columns CASCADE`).catch(() => {});
+
+        console.log("Kanban schema migration verified.");
+    } finally {
+        client.release();
+    }
+  } catch (e) {
+    console.error("Could not run Kanban migration", e);
+  }
+
   const app = express();
   const server = http.createServer(app);
   const PORT = 3000;

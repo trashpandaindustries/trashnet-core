@@ -16,8 +16,7 @@ function KanbanItemModule({ refId }: { refId: string }) {
     queryKey: ['kanbanItem', refId],
     queryFn: async () => {
       const res = await api.get(`/api/kanban/items/${refId}`);
-      if (!res.ok) throw new Error('Failed to fetch kanban item');
-      return res.json();
+      return res;
     }
   });
 
@@ -66,7 +65,7 @@ function BookmarkModule({ refId }: { refId: string }) {
     queryKey: ['bookmarks', refId],
     queryFn: async () => {
        const res = await api.get(`/api/bookmarks/${refId}`);
-       return res.json();
+       return res;
     },
     refetchInterval: (query) => query.state.data?.scrape_status === 'pending' ? 3000 : false
   });
