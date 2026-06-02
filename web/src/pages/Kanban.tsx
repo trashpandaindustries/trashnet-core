@@ -89,7 +89,7 @@ function SortableItem({ id, item, onDelete, onTogglePin, onEdit }: { id: string,
   );
 }
 
-function KanbanColumn({ column, items, onDelete, onTogglePinItem, onDeleteItem, onEditItem }: any) {
+function KanbanColumn({ column, items, onTogglePinItem, onDeleteItem, onEditItem }: any) {
   const itemIds = useMemo(() => items.map((i: any) => i.id), [items]);
 
   const { setNodeRef } = useSortable({
@@ -107,9 +107,6 @@ function KanbanColumn({ column, items, onDelete, onTogglePinItem, onDeleteItem, 
             {column.name}
             <span className="bg-slate-800 text-slate-400 text-xs py-0.5 px-2 rounded-full font-medium">{items.length}</span>
         </h3>
-        <button onClick={() => onDelete(column.id)} className="text-slate-500 hover:text-rose-400 p-1 rounded-md transition-colors">
-            <Trash2 size={14} />
-        </button>
       </div>
 
       <div className="p-3 flex-1 overflow-y-auto flex flex-col gap-3 min-h-[150px]">
@@ -155,23 +152,10 @@ export default function Kanban() {
     }
   });
 
-  const addColumn = useMutation({
-      mutationFn: async (name: string) => await api.post('/api/kanban/columns', { name }),
-      onSuccess: () => {
-          setNewColName('');
-          queryClient.invalidateQueries({ queryKey: ['kanbanBoard'] });
-      }
-  });
-
   const moveItem = useMutation({
-      mutationFn: async ({ itemId, columnId }: { itemId: string, columnId: string }) => {
-          await api.put(`/api/kanban/items/${itemId}`, { column_id: columnId });
+      mutationFn: async ({ itemId, status }: { itemId: string, status: string }) => {
+          await api.put(`/api/kanban/items/${itemId}`, { status });
       },
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kanbanBoard'] })
-  });
-
-  const deleteColumn = useMutation({
-      mutationFn: async (id: string) => await api.delete(`/api/kanban/columns/${id}`),
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kanbanBoard'] })
   });
   
@@ -214,15 +198,15 @@ export default function Kanban() {
       const overType = over.data.current?.type;
 
       if (activeType === 'Item' && overType === 'Column') {
-          if (active.data.current.item.column_id !== over.id) {
-              moveItem.mutate({ itemId: active.id, columnId: String(over.id) });
+          if (active.data.current.item.status !== over.id) {
+              moveItem.mutate({ itemId: active.id, status: String(over.id) });
           }
       }
       
       if (activeType === 'Item' && overType === 'Item') {
-          const targetColId = over.data.current.item.column_id;
-          if (active.data.current.item.column_id !== targetColId) {
-              moveItem.mutate({ itemId: active.id, columnId: targetColId });
+          const targetStatus = over.data.current.item.status;
+          if (active.data.current.item.status !== targetStatus) {
+              moveItem.mutate({ itemId: active.id, status: targetStatus });
           }
       }
   };
@@ -269,8 +253,7 @@ export default function Kanban() {
                         <div key={col.id} className="h-full flex flex-col">
                             <KanbanColumn 
                                 column={col} 
-                                items={filteredItems.filter((i: any) => i.column_id === col.id)}
-                                onDelete={(id: string) => deleteColumn.mutate(id)}
+                                items={filteredItems.filter((i: any) => i.status === col.id)}
                                 onTogglePinItem={(id: string, show: boolean) => togglePin.mutate({ id, show })}
                                 onDeleteItem={(id: string) => deleteItem.mutate(id)}
                                 onEditItem={(item: any) => setEditingItem(item)}
@@ -296,32 +279,13 @@ export default function Kanban() {
                         ) : null}
                     </DragOverlay>
                 </DndContext>
-                
-                {/* Add column */}
-                <div className="bg-slate-900/50 rounded-xl border border-slate-800 border-dashed w-80 shrink-0 p-4 flex flex-col justify-center items-center">
-                    <input 
-                        type="text" 
-                        value={newColName} 
-                        onChange={e => setNewColName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && newColName.trim()) addColumn.mutate(newColName.trim()); }}
-                        placeholder="New Column Name..."
-                        className="bg-transparent border-b border-slate-700 focus:border-indigo-500 outline-none text-center text-slate-300 w-full mb-3 pb-1 text-sm font-medium"
-                    />
-                    <button 
-                        disabled={!newColName.trim() || addColumn.isPending}
-                        onClick={() => addColumn.mutate(newColName.trim())}
-                        className="text-xs text-indigo-400 font-medium px-3 py-1 rounded bg-indigo-400/10 hover:bg-indigo-400/20 disabled:opacity-50"
-                    >
-                        Add Column
-                    </button>
-                </div>
             </div>
         </div>
         
         {/* We would render an edit / create modal here */}
         {(newItemColId || editingItem) && (
            <ItemModal 
-               columnId={newItemColId} 
+               status={newItemColId} 
                item={editingItem}
                onClose={() => { setNewItemColId(null); setEditingItem(null); }} 
                columns={data.columns} 
@@ -332,20 +296,20 @@ export default function Kanban() {
   );
 }
 
-function ItemModal({ columnId, item, onClose, columns, tags }: any) {
+function ItemModal({ status, item, onClose, columns, tags }: any) {
     const queryClient = useQueryClient();
     const [title, setTitle] = useState(item?.title || '');
     const [desc, setDesc] = useState(item?.description || '');
     const [priority, setPriority] = useState(item?.priority || 'medium');
     const [dueDate, setDueDate] = useState(item?.due_date ? new Date(item.due_date).toISOString().split('T')[0] : '');
-    const [colId, setColId] = useState(columnId || item?.column_id);
+    const [currentStatus, setCurrentStatus] = useState(status || item?.status || 'To Do');
     
     const save = useMutation({
         mutationFn: async () => {
             const payload = {
                 title, description: desc, priority, 
                 due_date: dueDate ? new Date(dueDate).toISOString() : null,
-                column_id: colId
+                status: currentStatus
             };
             if (item) {
                 await api.put(`/api/kanban/items/${item.id}`, payload);
@@ -401,10 +365,10 @@ function ItemModal({ columnId, item, onClose, columns, tags }: any) {
                       </div>
                       
                       <div className="flex-1">
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Column</label>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Status</label>
                           <select 
                              className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-slate-200 outline-none focus:border-indigo-500"
-                             value={colId} onChange={e => setColId(e.target.value)}
+                             value={currentStatus} onChange={e => setCurrentStatus(e.target.value)}
                           >
                               {columns.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>

@@ -9,7 +9,12 @@ kanbanRouter.get('/board', async (req: any, res) => {
         const userId = req.user.sub;
         
         await withUser(userId, async (client) => {
-            const colsResult = await client.query('SELECT * FROM kanban_columns WHERE user_id = $1 ORDER BY position ASC', [userId]);
+            const columns = [
+                { id: 'To Do', name: 'To Do' },
+                { id: 'In Progress', name: 'In Progress' },
+                { id: 'In Review', name: 'In Review' },
+                { id: 'Done', name: 'Done' }
+            ];
             
             const itemsResult = await client.query(`
                 SELECT i.*, 
@@ -23,7 +28,7 @@ kanbanRouter.get('/board', async (req: any, res) => {
             `, [userId]);
             
             res.json({
-                columns: colsResult.rows,
+                columns,
                 items: itemsResult.rows
             });
         });
@@ -33,90 +38,20 @@ kanbanRouter.get('/board', async (req: any, res) => {
     }
 });
 
-// POST /api/kanban/columns
-kanbanRouter.post('/columns', async (req: any, res) => {
-    try {
-        const { name } = req.body;
-        const userId = req.user.sub;
-        
-        if (!name) return res.status(400).json({ error: 'Name required' });
-        
-        const result = await withUser(userId, async (client) => {
-            const maxPosResult = await client.query('SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM kanban_columns');
-            const nextPos = maxPosResult.rows[0].next_pos;
-            
-            return client.query(`
-                INSERT INTO kanban_columns (user_id, name, position) 
-                VALUES ($1, $2, $3) RETURNING *
-            `, [userId, name, nextPos]);
-        });
-        
-        res.status(201).json(result.rows[0]);
-    } catch (error) {
-        console.error('Error creating kanban column:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// PUT /api/kanban/columns/:id
-kanbanRouter.put('/columns/:id', async (req: any, res) => {
-    try {
-        const { name, position } = req.body;
-        const colId = req.params.id;
-        const userId = req.user.sub;
-        
-        const updated = await withUser(userId, async (client) => {
-            const current = await client.query('SELECT * FROM kanban_columns WHERE id = $1 AND user_id = $2', [colId, userId]);
-            if (current.rows.length === 0) return null;
-            
-            return client.query(`
-                UPDATE kanban_columns 
-                SET name = COALESCE($1, name), position = COALESCE($2, position)
-                WHERE id = $3 AND user_id = $4 RETURNING *
-            `, [name, position, colId, userId]);
-        });
-        
-        if (!updated) return res.status(404).json({ error: 'Not found' });
-        res.json(updated.rows[0]);
-    } catch (error) {
-        console.error('Error updating kanban column:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// DELETE /api/kanban/columns/:id
-kanbanRouter.delete('/columns/:id', async (req: any, res) => {
-    try {
-        const colId = req.params.id;
-        const userId = req.user.sub;
-        
-        const deleted = await withUser(userId, async (client) => {
-            const r = await client.query('DELETE FROM kanban_columns WHERE id = $1 AND user_id = $2 RETURNING id', [colId, userId]);
-            return r.rowCount > 0;
-        });
-        
-        if (!deleted) return res.status(404).json({ error: 'Not found' });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting kanban column:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
 // POST /api/kanban/items
 kanbanRouter.post('/items', async (req: any, res) => {
     try {
-        const { column_id, title, description, priority, due_date, show_on_dashboard } = req.body;
+        const { status, title, description, priority, due_date, show_on_dashboard } = req.body;
         const userId = req.user.sub;
         
-        if (!title || !column_id) return res.status(400).json({ error: 'Title and column_id required' });
+        if (!title) return res.status(400).json({ error: 'Title required' });
         
         const result = await withUser(userId, async (client) => {
             const r = await client.query(`
-                INSERT INTO kanban_items (user_id, column_id, title, description, priority, due_date, show_on_dashboard)
-                VALUES ($1, $2, $3, $4, COALESCE($5, 'medium'), $6, COALESCE($7, false))
+                INSERT INTO kanban_items (user_id, status, title, description, priority, due_date, show_on_dashboard)
+                VALUES ($1, COALESCE($2, 'To Do'), $3, $4, COALESCE($5, 'medium'), $6, COALESCE($7, false))
                 RETURNING *
-            `, [userId, column_id, title, description, priority, due_date, show_on_dashboard || false]);
+            `, [userId, status || 'To Do', title, description, priority, due_date, show_on_dashboard || false]);
             
             if (r.rows[0].show_on_dashboard) {
                 await client.query(`
@@ -152,7 +87,7 @@ kanbanRouter.put('/items/:id', async (req: any, res) => {
         if (req.body.description !== undefined) { updates.push(`description = $${pidx++}`); values.push(req.body.description); }
         if (req.body.priority !== undefined) { updates.push(`priority = $${pidx++}`); values.push(req.body.priority); }
         if (req.body.due_date !== undefined) { updates.push(`due_date = $${pidx++}`); values.push(req.body.due_date); }
-        if (req.body.column_id !== undefined) { updates.push(`column_id = $${pidx++}`); values.push(req.body.column_id); }
+        if (req.body.status !== undefined) { updates.push(`status = $${pidx++}`); values.push(req.body.status); }
         if (req.body.show_on_dashboard !== undefined) { updates.push(`show_on_dashboard = $${pidx++}`); values.push(req.body.show_on_dashboard); }
         
         values.push(itemId);

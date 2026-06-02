@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 import path from 'path';
 import http from 'http';
 import { createServer as createViteServer } from 'vite';
+import { pool } from './db.js';
 import { authRouter, requireAuth } from './auth.js';
 import { notesRouter } from './notes.js';
 import { tagsRouter } from './tags.js';

@@ -217,7 +217,7 @@ notesRouter.post('/:id/tags/:tagId', async (req: Request, res: Response) => {
 notesRouter.post('/:id/convert-to-kanban', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
   const { id } = req.params;
-  const { column_id } = req.body;
+  const { status } = req.body;
   try {
     const item = await withUser(userId, async (client) => {
       // Get the note
@@ -225,23 +225,15 @@ notesRouter.post('/:id/convert-to-kanban', async (req: Request, res: Response) =
       if (noteRes.rows.length === 0) return null;
       const note = noteRes.rows[0];
 
-      // Use provided column_id or find the first column (e.g., 'To Do' or lowest position)
-      let targetColumnId = column_id;
-      if (!targetColumnId) {
-          const colRes = await client.query('SELECT id FROM kanban_columns WHERE user_id = $1 ORDER BY position ASC LIMIT 1', [userId]);
-          if (colRes.rows.length > 0) {
-              targetColumnId = colRes.rows[0].id;
-          } else {
-              throw new Error('No kanban columns available');
-          }
-      }
+      // Use provided status or default to 'To Do'
+      const targetStatus = status || 'To Do';
 
       // Create kanban item
       const itemRes = await client.query(`
-        INSERT INTO kanban_items (user_id, column_id, title, description, priority)
+        INSERT INTO kanban_items (user_id, status, title, description, priority)
         VALUES ($1, $2, $3, $4, 'medium')
         RETURNING *
-      `, [userId, targetColumnId, note.title, note.content]);
+      `, [userId, targetStatus, note.title, note.content]);
       
       const newItem = itemRes.rows[0];
       
