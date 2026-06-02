@@ -2,18 +2,17 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { 
-  Kanban as KanbanIcon, Plus, MoreVertical, Calendar, 
+  Kanban as KanbanIcon, Plus, Calendar, 
   Trash2, X, Check, Edit2, Pin, PinOff 
 } from 'lucide-react';
 import {
   DndContext, DragOverlay, closestCorners,
-  KeyboardSensor, PointerSensor, useSensor, useSensors
+  KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable
 } from '@dnd-kit/core';
 import {
-  SortableContext, arrayMove, sortableKeyboardCoordinates,
-  verticalListSortingStrategy
+  SortableContext, sortableKeyboardCoordinates,
+  verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,7 +91,7 @@ function SortableItem({ id, item, onDelete, onTogglePin, onEdit }: { id: string,
 function KanbanColumn({ column, items, onTogglePinItem, onDeleteItem, onEditItem }: any) {
   const itemIds = useMemo(() => items.map((i: any) => i.id), [items]);
 
-  const { setNodeRef } = useSortable({
+  const { setNodeRef } = useDroppable({
       id: column.id,
       data: { type: 'Column', column }
   });
