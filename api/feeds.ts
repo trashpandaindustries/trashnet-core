@@ -65,13 +65,14 @@ feedsRouter.post('/sources', async (req: Request, res: Response) => {
   try {
     const result = await withUser(userId, async (client) => {
       const { rows } = await client.query(`
-        INSERT INTO feed_sources (name, endpoint_url, feed_type, items_path, poll_interval_s, show_on_dashboard)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
-      `, [name, endpoint_url, feed_type, items_path || null, poll_interval_s || 300, show_on_dashboard || false]);
+        INSERT INTO feed_sources (user_id, name, endpoint_url, feed_type, items_path, poll_interval_s, show_on_dashboard)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+      `, [userId, name, endpoint_url, feed_type, items_path || null, poll_interval_s || 300, show_on_dashboard || false]);
       return rows[0];
     });
     res.status(201).json(result);
   } catch (error) {
+    console.error("Express Error POST /sources:", error);
     res.status(500).json({ error: 'Failed to create source' });
   }
 });
@@ -107,13 +108,12 @@ feedsRouter.put('/sources/:id', async (req: Request, res: Response) => {
       `, [name, endpoint_url, feed_type, items_path || null, poll_interval_s, show_on_dashboard, sourceId]);
       
       if (rows.length > 0) {
-        // Toggle dashboard module if needed
         if (show_on_dashboard) {
           await client.query(`
-            INSERT INTO dashboard_modules (module_type, ref_id, pos_x, pos_y, width, height)
-            SELECT 'feed_source', $1, 0, 0, 3, 2
+            INSERT INTO dashboard_modules (user_id, module_type, ref_id, pos_x, pos_y, width, height)
+            SELECT $2, 'feed_source', $1, 0, 0, 3, 2
             WHERE NOT EXISTS (SELECT 1 FROM dashboard_modules WHERE module_type = 'feed_source' AND ref_id = $1)
-          `, [sourceId]);
+          `, [sourceId, userId]);
         } else {
           await client.query(`DELETE FROM dashboard_modules WHERE module_type = 'feed_source' AND ref_id = $1`, [sourceId]);
         }
@@ -123,6 +123,7 @@ feedsRouter.put('/sources/:id', async (req: Request, res: Response) => {
     if (!result) return res.status(404).json({ error: 'Source not found' });
     res.json(result);
   } catch (error) {
+    console.error("Express Error PUT /sources/:id:", error);
     res.status(500).json({ error: 'Failed to update source' });
   }
 });
@@ -186,6 +187,7 @@ feedsRouter.put('/sources/:id/mappings', async (req: Request, res: Response) => 
     res.json({ success: true });
   } catch (error: any) {
     if (error.message === 'Not found') return res.status(404).json({ error: 'Source not found' });
+    console.error("Express Error PUT /sources/:id/mappings:", error);
     res.status(500).json({ error: 'Failed to update mappings' });
   }
 });

@@ -145,9 +145,13 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
       const res = await api[method](url, formData);
       return res;
     },
-    onSuccess: (data) => {
-      if (mappings.length > 0) {
-        api.put(`/api/feeds/sources/${data.id}/mappings`, mappings);
+    onSuccess: async (data) => {
+      try {
+        if (mappings.length > 0 && data?.id) {
+          await api.put(`/api/feeds/sources/${data.id}/mappings`, mappings);
+        }
+      } catch (e) {
+        console.error("Failed to save mappings", e);
       }
       queryClient.invalidateQueries({ queryKey: ['feedSources'] });
       onBack();
@@ -319,15 +323,17 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
         </div>
 
         {/* Right Col: Preview */}
-        <div className="bg-[#0f111a] border border-slate-800 rounded-xl overflow-hidden shadow-inner flex flex-col h-[500px] lg:h-auto pb-6">
+        <div className="bg-[#0f111a] border border-slate-800 rounded-xl overflow-hidden shadow-inner flex flex-col h-[500px] lg:h-full pb-0">
            <div className="bg-slate-800/50 px-4 py-2 border-b border-slate-800 flex justify-between items-center shrink-0">
              <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Payload Inspector</span>
-             {focusedField && <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-medium animate-pulse">Select path for {focusedField}</span>}
+             {isRefetching && <span className="text-[10px] text-sky-400 font-medium animate-pulse">Loading API data...</span>}
+             {!isRefetching && focusedField && <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-medium animate-pulse">Select path for {focusedField}</span>}
            </div>
-           <div className="p-4 overflow-auto flex-1 text-xs font-mono">
+           <div className="p-4 overflow-auto flex-1 text-xs font-mono relative">
              {previewData ? (
-                <div className="text-slate-300 select-none">
-                  <JsonTree data={previewData} onSelectPath={handlePathSelect} />
+                <div className={`text-slate-300 select-none transition-opacity ${isRefetching ? 'opacity-50' : 'opacity-100'}`}>
+                  {/* Provide a random key each fetch to reset tree expansion state naturally */}
+                  <JsonTree key={isRefetching ? 'loading' : 'loaded'} data={previewData} onSelectPath={handlePathSelect} />
                 </div>
              ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-4">
