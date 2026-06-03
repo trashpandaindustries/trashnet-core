@@ -30,7 +30,7 @@ function FeedSourceModule({ refId }: { refId: string }) {
     queryKey: ['feedSource', refId],
     queryFn: async () => {
       const res = await api.get(`/api/feeds/sources/${refId}`);
-      return res.data;
+      return res;
     }
   });
 
@@ -38,7 +38,7 @@ function FeedSourceModule({ refId }: { refId: string }) {
     queryKey: ['feedItems', refId],
     queryFn: async () => {
       const res = await api.get(`/api/feeds/sources/${refId}/items`);
-      return res.data;
+      return res;
     },
     refetchInterval: source?.poll_interval_s ? source.poll_interval_s * 1000 : 300000
   });

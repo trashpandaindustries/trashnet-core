@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Plus, Trash2, Edit2, Settings2, RefreshCw, Rss, Code2 } from 'lucide-react';
 
+import { JsonTree } from '../components/JsonTree';
+
 export default function Feeds() {
   const queryClient = useQueryClient();
   const [selectedSource, setSelectedSource] = useState<any>(null);
@@ -12,7 +14,7 @@ export default function Feeds() {
     queryKey: ['feedSources'],
     queryFn: async () => {
       const res = await api.get('/api/feeds/sources');
-      return res.data;
+      return res;
     }
   });
 
@@ -130,8 +132,8 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
     queryFn: async () => {
       if (!source?.id) return null;
       const res = await api.get(`/api/feeds/sources/${source.id}`);
-      setMappings(res.data?.mappings || []);
-      return res.data;
+      setMappings(res?.mappings || []);
+      return res;
     },
     enabled: !!source?.id
   });
@@ -141,7 +143,7 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
       const method = source ? 'put' : 'post';
       const url = source ? `/api/feeds/sources/${source.id}` : `/api/feeds/sources`;
       const res = await api[method](url, formData);
-      return res.data;
+      return res;
     },
     onSuccess: (data) => {
       if (mappings.length > 0) {
@@ -152,6 +154,8 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
     }
   });
 
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
   const fetchPreview = async () => {
     setIsRefetching(true);
     try {
@@ -159,7 +163,7 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
         endpoint_url: formData.endpoint_url,
         feed_type: formData.feed_type
       });
-      setPreviewData(res.data);
+      setPreviewData(res);
     } catch(e) {
       alert("Failed to fetch preview");
     } finally {
@@ -181,7 +185,39 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
     });
   };
 
+  const handlePathSelect = (path: string) => {
+    if (focusedField) {
+      updateMapping(focusedField, path);
+    }
+  };
+
   const getMapping = (field: string) => mappings.find(m => m.display_field === field)?.payload_path || '';
+  
+  // Test mapping render locally
+  const applyMappingLocal = (payload: any) => {
+    // Helper resolver matching backend
+    const resolvePath = (obj: any, path: string) => path.split('.').reduce((acc, k) => acc?.[k], obj) ?? null;
+    
+    // items_path
+    let items = payload;
+    if (formData.items_path) {
+      items = resolvePath(payload, formData.items_path) || [];
+    } else {
+       items = Array.isArray(payload) ? payload : [payload];
+    }
+    
+    if (!Array.isArray(items) || items.length === 0) return null;
+    
+    const sample = items[0];
+    const result: any = {};
+    for (const {display_field, payload_path} of mappings) {
+      const val = resolvePath(sample, payload_path);
+      if (val !== null && val !== undefined) result[display_field] = String(val);
+    }
+    return result;
+  };
+
+  const sampleMapped = previewData ? applyMappingLocal(previewData) : null;
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col h-full">
@@ -259,9 +295,11 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
                   </div>
                   <input 
                     type="text" 
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded md:rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs focus:outline-none focus:border-indigo-500 placeholder-slate-700" 
+                    className={`flex-1 bg-slate-950 border border-slate-800 rounded md:rounded-lg px-3 py-1.5 text-slate-200 font-mono text-xs focus:outline-none transition-colors ${focusedField === field ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'focus:border-indigo-500 placeholder-slate-700'}`} 
                     value={getMapping(field)} 
                     onChange={e => updateMapping(field, e.target.value)} 
+                    onFocus={() => setFocusedField(field)}
+                    onBlur={() => setTimeout(() => setFocusedField(null), 200)}
                     placeholder="e.g. some.dot.path" 
                   />
                 </div>
@@ -284,12 +322,13 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
         <div className="bg-[#0f111a] border border-slate-800 rounded-xl overflow-hidden shadow-inner flex flex-col h-[500px] lg:h-auto pb-6">
            <div className="bg-slate-800/50 px-4 py-2 border-b border-slate-800 flex justify-between items-center shrink-0">
              <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Payload Inspector</span>
+             {focusedField && <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-medium animate-pulse">Select path for {focusedField}</span>}
            </div>
            <div className="p-4 overflow-auto flex-1 text-xs font-mono">
              {previewData ? (
-                <pre className="text-slate-300">
-                  {JSON.stringify(previewData, null, 2)}
-                </pre>
+                <div className="text-slate-300 select-none">
+                  <JsonTree data={previewData} onSelectPath={handlePathSelect} />
+                </div>
              ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-4">
                    <Code2 size={48} className="opacity-20" />
@@ -297,6 +336,40 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
                 </div>
              )}
            </div>
+
+           {/* Test Card View */}
+           {sampleMapped && Object.keys(sampleMapped).length > 0 && (
+             <div className="border-t border-slate-800 bg-slate-900/80 p-4 shrink-0">
+                <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Test Card Preview</h4>
+                <div className="flex flex-col gap-1 text-sm bg-slate-800/80 p-3 rounded-lg border border-slate-700 shadow-sm max-w-sm">
+                 {sampleMapped.title && (
+                   <div className="font-semibold text-slate-200 leading-snug">
+                     {sampleMapped.url ? (
+                       <a href={sampleMapped.url} target="_blank" rel="noreferrer" className="hover:text-indigo-400 hover:underline">{sampleMapped.title}</a>
+                     ) : sampleMapped.title}
+                   </div>
+                 )}
+                 
+                 {(sampleMapped.author || sampleMapped.date || sampleMapped.badge) && (
+                   <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 font-medium mt-1">
+                     {sampleMapped.badge && (
+                       <span className="px-1.5 py-0.5 rounded uppercase font-bold text-white tracking-wide" style={{ backgroundColor: sampleMapped.badge_color || '#475569' }}>
+                         {sampleMapped.badge}
+                       </span>
+                     )}
+                     {sampleMapped.author && <span>{sampleMapped.author}</span>}
+                     {sampleMapped.date && <span>{sampleMapped.date}</span>}
+                   </div>
+                 )}
+                 
+                 {sampleMapped.summary && (
+                   <div className="text-xs text-slate-400 line-clamp-2 mt-2 leading-relaxed">
+                     {sampleMapped.summary}
+                   </div>
+                 )}
+               </div>
+             </div>
+           )}
         </div>
 
       </div>
