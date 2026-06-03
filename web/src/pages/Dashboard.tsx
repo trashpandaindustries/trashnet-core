@@ -10,6 +10,98 @@ import { Bookmark, RefreshCw, ExternalLink } from 'lucide-react';
 import { Kanban as KanbanIcon, Calendar, CheckCircle2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Rss } from 'lucide-react';
+
+function formatRelative(dateStr: string) {
+  if (!dateStr) return 'Never';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function FeedSourceModule({ refId }: { refId: string }) {
+  const { data: source, isLoading: isLoadingSource } = useQuery({
+    queryKey: ['feedSource', refId],
+    queryFn: async () => {
+      const res = await api.get(`/api/feeds/sources/${refId}`);
+      return res.data;
+    }
+  });
+
+  const { data: items, isLoading: isLoadingItems } = useQuery({
+    queryKey: ['feedItems', refId],
+    queryFn: async () => {
+      const res = await api.get(`/api/feeds/sources/${refId}/items`);
+      return res.data;
+    },
+    refetchInterval: source?.poll_interval_s ? source.poll_interval_s * 1000 : 300000
+  });
+
+  if (isLoadingSource || isLoadingItems) return <div className="text-slate-500 text-sm p-4 animate-pulse">Loading feed...</div>;
+  if (!source) return <div className="text-rose-500 text-sm p-4">Feed source not found</div>;
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden group">
+      <div className="flex items-center justify-between mb-3 shrink-0 px-1 border-b border-slate-800/60 pb-2">
+        <div className="flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-wider text-xs">
+          <Rss size={14} /> {source.name}
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+           <span>{formatRelative(source.last_fetched_at)}</span>
+           <div 
+             className={`w-2 h-2 rounded-full ${source.failure_count === 0 ? 'bg-emerald-500' : source.failure_count > 3 ? 'bg-red-500' : 'bg-amber-500'}`} 
+             title={source.failure_count === 0 ? 'Healthy' : `${source.failure_count} failures`}
+           ></div>
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto pr-1 space-y-3 relative">
+        {!items || items.length === 0 ? (
+           <div className="text-xs text-slate-500 italic p-2 text-center">No items available</div>
+        ) : (
+           items.map((itemRow: any) => {
+             const data = itemRow.normalised;
+             return (
+               <div key={itemRow.id} className="flex flex-col gap-1 text-sm bg-slate-900/30 p-2 rounded-lg border border-slate-800/40">
+                 {data.title && (
+                   <div className="font-semibold text-slate-200 leading-snug">
+                     {data.url ? (
+                       <a href={data.url} target="_blank" rel="noreferrer" className="hover:text-indigo-400 hover:underline">{data.title}</a>
+                     ) : data.title}
+                   </div>
+                 )}
+                 
+                 {(data.author || data.date || data.badge) && (
+                   <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-medium">
+                     {data.badge && (
+                       <span className="px-1.5 py-0.5 rounded uppercase font-bold text-white tracking-wide" style={{ backgroundColor: data.badge_color || '#475569' }}>
+                         {data.badge}
+                       </span>
+                     )}
+                     {data.author && <span>{data.author}</span>}
+                     {data.date && <span>{formatRelative(data.date)}</span>}
+                   </div>
+                 )}
+                 
+                 {data.summary && (
+                   <div className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                     {data.summary}
+                   </div>
+                 )}
+               </div>
+             );
+           })
+        )}
+      </div>
+    </div>
+  );
+}
 
 function KanbanItemModule({ refId }: { refId: string }) {
   const { data: item, isLoading } = useQuery({
@@ -143,6 +235,10 @@ export default function Dashboard() {
         const data = JSON.parse(event.data);
         if (data.type === 'system_update') {
           setWsData({ stats: data.stats, docker: data.docker });
+        } else if (data.type === 'feed:update') {
+          // invalidate any active queries for this feed
+          queryClient.invalidateQueries({ queryKey: ['feedItems', data.sourceId] });
+          queryClient.invalidateQueries({ queryKey: ['feedSource', data.sourceId] });
         }
       } catch (err) {
         console.error('WS MSG Parse Error', err);
@@ -284,6 +380,9 @@ export default function Dashboard() {
     }
     if (mod.module_type === 'kanban_item' && mod.ref_id) {
        return <KanbanItemModule refId={mod.ref_id} />;
+    }
+    if (mod.module_type === 'feed_source' && mod.ref_id) {
+       return <FeedSourceModule refId={mod.ref_id} />;
     }
     return <div className="text-slate-500 text-xs">Unknown Module {mod.module_type}</div>;
   };

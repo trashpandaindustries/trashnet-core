@@ -12,6 +12,8 @@ import Bookmarks from './pages/Bookmarks';
 import Kanban from './pages/Kanban';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import Feeds from './pages/Feeds';
+
 const queryClient = new QueryClient();
 
 export default function App() {
@@ -27,7 +29,7 @@ export default function App() {
             {/* Placeholders for future phases */}
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/kanban" element={<Kanban />} />
-            <Route path="/feeds" element={<div className="p-8 text-gray-500">Feeds placeholder</div>} />
+            <Route path="/feeds" element={<Feeds />} />
             <Route path="/files" element={<div className="p-8 text-gray-500">Files placeholder</div>} />
           </Route>
         </Routes>
