@@ -65,7 +65,7 @@ function FeedSourceModule({ refId }: { refId: string }) {
         {!items || items.length === 0 ? (
            <div className="text-xs text-slate-500 italic p-2 text-center">No items available</div>
         ) : (
-           items.map((itemRow: any) => {
+           items.slice(0, 10).map((itemRow: any) => {
              const data = itemRow.normalised;
              return (
                <div key={itemRow.id} className="flex flex-col gap-1 text-sm bg-slate-900/30 p-2 rounded-lg border border-slate-800/40">
@@ -425,7 +425,7 @@ export default function Dashboard() {
               className="grid gap-4"
               style={{ 
                 gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
-                gridAutoRows: 'minmax(120px, auto)',
+                gridAutoRows: '120px',
               }}
             >
                {Array.from({ length: 12 * 8 }).map((_, i) => (
