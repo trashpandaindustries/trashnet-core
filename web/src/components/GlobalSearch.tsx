@@ -45,7 +45,7 @@ export default function GlobalSearch() {
     queryFn: async () => {
       if (!query.trim()) return null;
       const res = await api.get(`/api/search?q=${encodeURIComponent(query)}`);
-      return res.data;
+      return res;
     },
     enabled: isOpen && query.trim().length > 0,
   });

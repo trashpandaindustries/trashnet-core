@@ -43,7 +43,7 @@ export default function ProtectedRoute() {
       <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 
       {/* Top Header Bar */}
-      <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-950/80 backdrop-blur-md z-10 shrink-0">
+      <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-950/80 backdrop-blur-md z-50 shrink-0 relative">
         <div className="flex items-center gap-4">
           <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
           <span className="text-slate-100 font-bold tracking-tighter text-lg">trashnet_<span className="text-emerald-500">core</span></span>
