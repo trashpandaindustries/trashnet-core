@@ -13,6 +13,7 @@ import { systemRouter, getSystemStats, getDockerServices } from './system.js';
 import { bookmarksRouter } from './bookmarks.js';
 import { kanbanRouter } from './kanban.js';
 import { feedsRouter, pollSource, startPoller, feedEvents } from './feeds.js';
+import { filesRouter } from './files.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
@@ -89,6 +90,22 @@ async function startServer() {
         `;
         await client.query(feedSchema).catch((e) => console.log('Feed schema migration issue', e));
         console.log("Feed schema migration verified.");
+        // Run file browser migration
+        const fileSchema = `
+        CREATE TABLE IF NOT EXISTS file_audit_log (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+            action      VARCHAR(20) NOT NULL CHECK (action IN ('list', 'download', 'preview')),
+            path        TEXT NOT NULL,
+            ip_address  INET,
+            user_agent  TEXT,
+            accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_file_audit_time ON file_audit_log(accessed_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_file_audit_user ON file_audit_log(user_id);
+        `;
+        await client.query(fileSchema).catch((e) => console.log('File schema migration issue', e));
+        console.log("File schema migration verified.");
     } finally {
         client.release();
     }
@@ -114,6 +131,7 @@ async function startServer() {
   app.use('/api/bookmarks', requireAuth, bookmarksRouter);
   app.use('/api/kanban', requireAuth, kanbanRouter);
   app.use('/api/feeds', requireAuth, feedsRouter);
+  app.use('/api/files', requireAuth, filesRouter);
 
   // WebSocket Server
   const wss = new WebSocketServer({ noServer: true });
