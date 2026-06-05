@@ -9,6 +9,8 @@ INSERT INTO settings (key, value, description) VALUES
   ('portainer_url', '"http://portainer:9000"', 'URL to the Portainer instance'),
   ('portainer_token', '""', 'API token for Portainer access'),
   ('docker_label_filter', '"dashboard.show=true"', 'Label filter for monitoring Docker containers'),
+  ('portainer_ignore_ssl', 'false', 'Whether to ignore SSL certificates for Portainer access'),
+  ('portainer_env', '1', 'Which environment in portainer to monitor for labels'),
   ('stats_refresh_interval_ms', '10000', 'Interval to refresh system stats (ms)'),
   ('docker_refresh_interval_ms', '30000', 'Interval to refresh Docker status (ms)');
 
