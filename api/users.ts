@@ -35,18 +35,11 @@ usersRouter.post('/', async (req, res) => {
         
         const newUser = rows[0];
 
-        // Seed scratchpad and default kanban columns
+        // Seed scratchpad
         await withUser(newUser.id, async (client) => {
             await client.query(`
                 INSERT INTO notes (user_id, title, is_scratchpad) 
                 VALUES ($1, 'Scratchpad', true)
-            `, [newUser.id]);
-
-            await client.query(`
-                INSERT INTO kanban_columns (user_id, name, position) VALUES
-                ($1, 'To Do', 0),
-                ($1, 'In Progress', 1),
-                ($1, 'Done', 2)
             `, [newUser.id]);
         });
         
