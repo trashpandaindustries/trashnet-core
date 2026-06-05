@@ -14,6 +14,8 @@ import { bookmarksRouter } from './bookmarks.js';
 import { kanbanRouter } from './kanban.js';
 import { feedsRouter, pollSource, startPoller, feedEvents } from './feeds.js';
 import { filesRouter } from './files.js';
+import { preferencesRouter } from './preferences.js';
+import { usersRouter } from './users.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
@@ -106,6 +108,17 @@ async function startServer() {
         `;
         await client.query(fileSchema).catch((e) => console.log('File schema migration issue', e));
         console.log("File schema migration verified.");
+
+        // Run user preferences migration
+        const prefsSchema = `
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            user_id    UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            preferences JSONB NOT NULL DEFAULT '{}',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        `;
+        await client.query(prefsSchema).catch((e) => console.log('User preferences schema migration issue', e));
+        console.log("User preferences schema migration verified.");
     } finally {
         client.release();
     }
@@ -132,6 +145,8 @@ async function startServer() {
   app.use('/api/kanban', requireAuth, kanbanRouter);
   app.use('/api/feeds', requireAuth, feedsRouter);
   app.use('/api/files', requireAuth, filesRouter);
+  app.use('/api/preferences', requireAuth, preferencesRouter);
+  app.use('/api/users', requireAuth, usersRouter);
 
   // WebSocket Server
   const wss = new WebSocketServer({ noServer: true });

@@ -390,6 +390,13 @@ export default function Dashboard() {
   const hasStats = modules.some(m => m.module_type === 'system_stats');
   const hasDocker = modules.some(m => m.module_type === 'docker_services');
 
+  // Preferences
+  const { data: preferences } = useQuery({
+    queryKey: ['preferences'],
+    queryFn: () => api.get('/api/preferences')
+  });
+  const columns = preferences?.dashboard_columns || 12;
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between mb-6 shrink-0">
@@ -424,12 +431,12 @@ export default function Dashboard() {
             <div 
               className="grid gap-4"
               style={{ 
-                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 gridAutoRows: '120px',
               }}
             >
-               {Array.from({ length: 12 * 8 }).map((_, i) => (
-                  <DroppableCell key={`cell-${i}`} x={i % 12} y={Math.floor(i / 12)} />
+               {Array.from({ length: columns * 8 }).map((_, i) => (
+                  <DroppableCell key={`cell-${i}`} x={i % columns} y={Math.floor(i / columns)} />
                ))}
 
                {modules.map(mod => (

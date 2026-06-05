@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router';
-import { Home, FileText, Bookmark, LayoutDashboard, Rss, Folder, LogOut } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Home, FileText, Bookmark, LayoutDashboard, Rss, Folder, LogOut, Settings, ShieldAlert } from 'lucide-react';
 import { api } from '../lib/api';
 
 const navigation = [
@@ -13,6 +14,12 @@ const navigation = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
+
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get('/api/auth/me'),
+    staleTime: Infinity, // Don't keep polling for me
+  });
 
   const handleLogout = async () => {
     try {
@@ -54,6 +61,50 @@ export default function Sidebar() {
           ))}
         </nav>
       </div>
+
+      <div className="space-y-4">
+        <div className="text-[10px] text-slate-600 uppercase tracking-[0.2em] font-bold">System</div>
+        <nav className="flex flex-col gap-2">
+            <NavLink
+              to="/preferences"
+              className={({ isActive }) => 
+                `group flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive 
+                    ? 'text-emerald-500 border-l-2 border-emerald-500 bg-slate-900/50' 
+                    : 'text-slate-400 border-l-2 border-transparent hover:text-slate-200 hover:bg-slate-900/30'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Settings className={`shrink-0 h-4 w-4 ${isActive ? 'text-emerald-500' : 'text-slate-500 group-hover:text-slate-400'}`} aria-hidden="true" />
+                  Preferences
+                </>
+              )}
+            </NavLink>
+
+            {user?.role === 'admin' && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) => 
+                    `group flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive 
+                        ? 'text-indigo-400 border-l-2 border-indigo-500 bg-indigo-900/10' 
+                        : 'text-slate-400 border-l-2 border-transparent hover:text-indigo-300 hover:bg-slate-900/30'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <ShieldAlert className={`shrink-0 h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-indigo-400/50 group-hover:text-indigo-300'}`} aria-hidden="true" />
+                      Platform Admin
+                    </>
+                  )}
+                </NavLink>
+            )}
+        </nav>
+      </div>
+
       <div className="mt-auto border-t border-slate-900 pt-6">
         <button
           onClick={handleLogout}
