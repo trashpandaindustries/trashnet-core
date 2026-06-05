@@ -16,6 +16,8 @@ import { feedsRouter, pollSource, startPoller, feedEvents } from './feeds.js';
 import { filesRouter } from './files.js';
 import { preferencesRouter } from './preferences.js';
 import { usersRouter } from './users.js';
+import { settingsRouter } from './settings.js';
+import { logsRouter } from './logs.js';
 import jwt from 'jsonwebtoken';
 
 async function startServer() {
@@ -119,6 +121,17 @@ async function startServer() {
         `;
         await client.query(prefsSchema).catch((e) => console.log('User preferences schema migration issue', e));
         console.log("User preferences schema migration verified.");
+
+        // ALTER settings table
+        await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS description TEXT;`).catch(() => {});
+        // Update default descriptions if null
+        await client.query(`
+            UPDATE settings SET description = 'URL to the Portainer instance' WHERE key = 'portainer_url' AND description IS NULL;
+            UPDATE settings SET description = 'API token for Portainer access' WHERE key = 'portainer_token' AND description IS NULL;
+            UPDATE settings SET description = 'Label filter for monitoring Docker containers' WHERE key = 'docker_label_filter' AND description IS NULL;
+            UPDATE settings SET description = 'Interval to refresh system stats (ms)' WHERE key = 'stats_refresh_interval_ms' AND description IS NULL;
+            UPDATE settings SET description = 'Interval to refresh Docker status (ms)' WHERE key = 'docker_refresh_interval_ms' AND description IS NULL;
+        `).catch(() => {});
     } finally {
         client.release();
     }
@@ -147,6 +160,8 @@ async function startServer() {
   app.use('/api/files', requireAuth, filesRouter);
   app.use('/api/preferences', requireAuth, preferencesRouter);
   app.use('/api/users', requireAuth, usersRouter);
+  app.use('/api/settings', requireAuth, settingsRouter);
+  app.use('/api/logs', requireAuth, logsRouter);
 
   // WebSocket Server
   const wss = new WebSocketServer({ noServer: true });

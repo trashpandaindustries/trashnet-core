@@ -1,15 +1,16 @@
 CREATE TABLE settings (
     key        VARCHAR(100) PRIMARY KEY,
     value      JSONB NOT NULL,
+    description TEXT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO settings (key, value) VALUES
-  ('portainer_url', '"http://portainer:9000"'),
-  ('portainer_token', '""'),
-  ('docker_label_filter', '"dashboard.show=true"'),
-  ('stats_refresh_interval_ms', '10000'),
-  ('docker_refresh_interval_ms', '30000');
+INSERT INTO settings (key, value, description) VALUES
+  ('portainer_url', '"http://portainer:9000"', 'URL to the Portainer instance'),
+  ('portainer_token', '""', 'API token for Portainer access'),
+  ('docker_label_filter', '"dashboard.show=true"', 'Label filter for monitoring Docker containers'),
+  ('stats_refresh_interval_ms', '10000', 'Interval to refresh system stats (ms)'),
+  ('docker_refresh_interval_ms', '30000', 'Interval to refresh Docker status (ms)');
 
 CREATE TABLE dashboard_modules (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -101,4 +101,29 @@ Trashnet-Core includes a unified search bar in the top navigation header (`Cmd/C
 
 ## 7. File Browser
 
-[PLACEHOLDER: File browser documentation goes here. This module will allow view-only or read/write access to mounted homelab file directories.
+The File Browser module provides secure, read-only access to a designated storage drive mounted on your homelab server.
+
+### Features
+- **Directory Navigation:** Browse through folders and view files using breadcrumb navigation and visual icons indicating file types.
+- **File Previews:** Instantly preview common file types directly in your browser, including images (PNG, JPG, SVG, etc.), PDFs, text files, and standard code formats without needing to download them first. 
+- **File Downloads:** Download any file securely using the download action on the item row or via the preview dialog.
+- **Search Filtering:** Quickly filter files in the current directory using the search input.
+- **Security:** Access is strictly read-only, logging every preview and download action for audit purposes, with protections built-in against path traversal attempts.
+
+---
+
+## 8. User Controls & Administration
+
+Trashnet-Core supports multiple users per instance with partitioned data and preferences, plus global administrative controls.
+
+### Preferences (All Users)
+Accessible via the sidebar gear icon, current settings allow you to customize your personal layout workspace:
+- **Interface Theme:** Toggle your desired aesthetic (Dark Mode or experimental Light Mode).
+- **Dashboard Grid Columns:** Adjust the underlying layout resolution of the drag-and-drop dashboard. Default columns are 12, but can be scaled up or down to support specific display resolutions.
+
+### Platform Admin (Admin Users Only)
+Users designated as Administrators gain access to the Platform Admin panel to manage the system's users.
+- **User Management:** Create new users. Accounts are automatically seeded with default kanban columns and a scratchpad.
+- **Visibility & Actions:** View user roles, activity status (disabled/active), and basic account properties.
+- **Editing:** Update user data, change roles, or deactivate users to freeze their platform access.
+- **Password Resets:** Administrators can force-reset user passwords, an action that will additionally wipe all active sessions for the targeted user.

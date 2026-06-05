@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { ShieldAlert, Users as UsersIcon, Plus, UserX, UserCheck, KeySquare, CheckCircle2, Edit3 } from 'lucide-react';
+import { ShieldAlert, Users as UsersIcon, Plus, UserX, UserCheck, KeySquare, CheckCircle2, Edit3, Settings, ScrollText } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
+import AdminSettings from '../components/AdminSettings';
+import AdminLogs from '../components/AdminLogs';
 
 export default function Admin() {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'users' | 'settings' | 'logs'>('users');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -98,19 +101,37 @@ export default function Admin() {
       <div className="flex items-center justify-between mb-8 shrink-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
-            <UsersIcon size={24} className="text-indigo-400" />
-            Users
+            <ShieldAlert size={24} className="text-indigo-400" />
+            Platform Admin
           </h1>
-          <p className="text-slate-500 mt-1">Manage platform accounts and access</p>
+          <p className="text-slate-500 mt-1">Manage platform accounts, settings, and access</p>
         </div>
-        <button 
-           onClick={() => setIsCreateOpen(true)}
-           className="flex items-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded font-medium transition-colors"
-        >
-           <Plus size={16} /> New User
-        </button>
+        {activeTab === 'users' && (
+            <button 
+               onClick={() => setIsCreateOpen(true)}
+               className="flex items-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded font-medium transition-colors"
+            >
+               <Plus size={16} /> New User
+            </button>
+        )}
       </div>
 
+      <div className="flex gap-6 border-b border-slate-800 mb-6 shrink-0">
+         <button onClick={() => setActiveTab('users')} className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${activeTab === 'users' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'}`}>
+             <UsersIcon size={16}/> Users
+         </button>
+         <button onClick={() => setActiveTab('settings')} className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${activeTab === 'settings' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'}`}>
+             <Settings size={16}/> Settings
+         </button>
+         <button onClick={() => setActiveTab('logs')} className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${activeTab === 'logs' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'}`}>
+             <ScrollText size={16}/> File Audit Logs
+         </button>
+      </div>
+
+      {activeTab === 'settings' && <AdminSettings />}
+      {activeTab === 'logs' && <AdminLogs />}
+
+      {activeTab === 'users' && (
       <div className="flex-1 overflow-auto bg-[#0f111a] border border-slate-800 rounded-xl">
          <div className="w-full text-left border-separate" style={{ borderSpacing: 0 }}>
             <div className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-800 bg-slate-900/50 sticky top-0 z-10">
@@ -176,6 +197,7 @@ export default function Admin() {
             </div>
          </div>
       </div>
+      )}
 
       {/* Create User Dialog */}
       <Dialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} className="relative z-50">
