@@ -211,15 +211,15 @@ notesRouter.get('/:id', async (req: Request, res: Response) => {
 notesRouter.put('/:id', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
   const { id } = req.params;
-  const { title, content } = req.body;
+  const { title, content, filename } = req.body;
   try {
     const updated = await withUser(userId, async (client) => {
       const { rows } = await client.query(`
         UPDATE notes
-        SET title = COALESCE($1, title), content = COALESCE($2, content), updated_at = NOW()
-        WHERE id = $3 AND user_id = $4
+        SET title = COALESCE($1, title), content = COALESCE($2, content), filename = COALESCE($3, filename), updated_at = NOW()
+        WHERE id = $4 AND user_id = $5
         RETURNING *
-      `, [title, content, id, userId]);
+      `, [title, content, filename !== undefined ? filename : null, id, userId]);
       return rows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Note not found' });
@@ -266,10 +266,68 @@ notesRouter.post('/:id/tags/:tagId', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/notes/:id/github-check
+notesRouter.post('/:id/github-check', async (req: Request, res: Response) => {
+  const userId = (req as any).user.sub;
+  const { id } = req.params;
+  const { repo, branch, path: customPath, filename: customFilename } = req.body;
+  
+  try {
+    const result = await withUser(userId, async (client) => {
+      const { rows: noteRows } = await client.query('SELECT * FROM notes WHERE id = $1 AND user_id = $2', [id, userId]);
+      if (noteRows.length === 0) throw new Error('Note not found');
+      const note = noteRows[0];
+
+      const { rows: prefRows } = await client.query('SELECT preferences FROM user_preferences WHERE user_id = $1', [userId]);
+      const prefs = prefRows[0]?.preferences || {};
+      if (!prefs.github_token) throw new Error('GitHub token not configured in preferences');
+
+      const targetRepo = repo || prefs.github_repo;
+      const targetBranch = branch || prefs.github_branch || 'main';
+      const targetPath = customPath !== undefined ? customPath : (prefs.github_notes_path || '');
+
+      let filename = customFilename || note.filename;
+      if (!filename) {
+          const sanitizedTitle = note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          filename = `${sanitizedTitle}-${note.id.substring(0, 8)}.md`;
+      }
+      
+      const { decrypt } = await import('./github.js');
+      const token = decrypt(prefs.github_token);
+      
+      const { Octokit } = await import('octokit');
+      const octokit = new Octokit({ auth: token });
+      const [owner, repoName] = (targetRepo || '').split('/');
+      if (!owner || !repoName) return { exists: false, filename };
+      
+      const fullPath = (targetPath ? (targetPath.endsWith('/') ? targetPath : targetPath + '/') : '') + filename;
+      
+      try {
+        await octokit.rest.repos.getContent({
+            owner,
+            repo: repoName,
+            path: fullPath,
+            ref: targetBranch
+        });
+        return { exists: true, filename };
+      } catch (e: any) {
+        if (e.status === 404) return { exists: false, filename };
+        throw e;
+      }
+    });
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error checking GitHub:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // POST /api/notes/:id/github-push
 notesRouter.post('/:id/github-push', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
   const { id } = req.params;
+  const { repo, branch, path: customPath, filename: customFilename, message, updateNoteFilename } = req.body;
   
   try {
     const result = await withUser(userId, async (client) => {
@@ -281,29 +339,46 @@ notesRouter.post('/:id/github-push', async (req: Request, res: Response) => {
       if (prefRows.length === 0) throw new Error('Preferences not found');
       
       const prefs = prefRows[0].preferences || {};
-      if (!prefs.github_token || !prefs.github_repo) throw new Error('GitHub token and repo not configured');
+      if (!prefs.github_token) throw new Error('GitHub token not configured in preferences');
+
+      const targetRepo = repo || prefs.github_repo;
+      if (!targetRepo) throw new Error('GitHub repository not configured');
+
+      const targetBranch = branch || prefs.github_branch || 'main';
+      const targetPath = customPath !== undefined ? customPath : (prefs.github_notes_path || '');
 
       const { decrypt, pushNoteToGithub } = await import('./github.js');
       const token = decrypt(prefs.github_token);
-      let filename;
-      if (note.is_scratchpad) {
-         filename = 'scratchpad.md';
-      } else {
-         const sanitizedTitle = note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-         filename = `${sanitizedTitle}-${note.id.substring(0, 8)}.md`;
+      let filename = customFilename;
+      
+      if (!filename) {
+          if (note.is_scratchpad) {
+             filename = 'scratchpad.md';
+          } else {
+             filename = note.filename;
+             if (!filename) {
+                 const sanitizedTitle = note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                 filename = `${sanitizedTitle}-${note.id.substring(0, 8)}.md`;
+             }
+          }
       }
       
       await pushNoteToGithub(
           token, 
-          prefs.github_repo, 
-          prefs.github_branch || 'main', 
-          prefs.github_notes_path || '', 
+          targetRepo, 
+          targetBranch, 
+          targetPath, 
           filename, 
           note.content || '', 
-          `Update${note.is_scratchpad ? ' scratchpad' : `: ${note.title}`}`
+          message || `Update${note.is_scratchpad ? ' scratchpad' : `: ${note.title}`}`
       );
+
+      // Save filename back to note if requested
+      if (updateNoteFilename && filename && !note.is_scratchpad) {
+         await client.query('UPDATE notes SET filename = $1 WHERE id = $2 AND user_id = $3', [filename, note.id, userId]);
+      }
       
-      return { success: true };
+      return { success: true, filename };
     });
     
     res.json(result);

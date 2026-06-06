@@ -122,6 +122,9 @@ async function startServer() {
         await client.query(prefsSchema).catch((e) => console.log('User preferences schema migration issue', e));
         console.log("User preferences schema migration verified.");
 
+        // ALTER notes table to add filename
+        await client.query(`ALTER TABLE notes ADD COLUMN IF NOT EXISTS filename VARCHAR(255);`).catch(() => {});
+
         // ALTER settings table
         await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS description TEXT;`).catch(() => {});
         // Update default descriptions if null

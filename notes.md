@@ -22,3 +22,8 @@
 
 ### Platform Admin
 - Access and action logs. 
+
+
+### Push to git
+- ability to adjust file name, and maybe push location from notes. Maybe a popup to allow commit 
+- 
