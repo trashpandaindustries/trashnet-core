@@ -48,7 +48,33 @@ notesRouter.put('/scratchpad', async (req: Request, res: Response) => {
         WHERE is_scratchpad = true AND user_id = $2
         RETURNING id, title, content, updated_at
       `, [content, userId]);
-      return rows[0];
+      
+      const updatedNote = rows[0];
+
+      // Auto-push scratchpad if configured
+      const { rows: prefRows } = await client.query('SELECT preferences FROM user_preferences WHERE user_id = $1', [userId]);
+      if (prefRows.length > 0) {
+        const prefs = prefRows[0].preferences || {};
+        if (prefs.github_sync_scratchpad && prefs.github_token && prefs.github_repo) {
+          try {
+            const { decrypt, pushNoteToGithub } = await import('./github.js');
+            const token = decrypt(prefs.github_token);
+            await pushNoteToGithub(
+                token, 
+                prefs.github_repo, 
+                prefs.github_branch || 'main', 
+                prefs.github_notes_path || '', 
+                'scratchpad.md', 
+                updatedNote.content, 
+                `Autosave scratchpad`
+            );
+          } catch (e) {
+            console.error('Auto-sync scratchpad to GitHub failed', e);
+          }
+        }
+      }
+
+      return updatedNote;
     });
     res.json(result);
   } catch (error) {
@@ -90,7 +116,34 @@ notesRouter.post('/scratchpad/archive', async (req: Request, res: Response) => {
         WHERE is_scratchpad = true AND user_id = $1
       `, [userId]);
 
-      return newNotes[0];
+      const newNote = newNotes[0];
+
+      // Auto-push to github if configured
+      const { rows: prefRows } = await client.query('SELECT preferences FROM user_preferences WHERE user_id = $1', [userId]);
+      if (prefRows.length > 0) {
+        const prefs = prefRows[0].preferences || {};
+        if (prefs.github_push_on_archive && prefs.github_token && prefs.github_repo) {
+          try {
+            const { decrypt, pushNoteToGithub } = await import('./github.js');
+            const token = decrypt(prefs.github_token);
+            const sanitizedTitle = newNote.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const filename = `${sanitizedTitle}-${newNote.id.substring(0, 8)}.md`;
+            await pushNoteToGithub(
+                token, 
+                prefs.github_repo, 
+                prefs.github_branch || 'main', 
+                prefs.github_notes_path || '', 
+                filename, 
+                newNote.content, 
+                `Archive: ${newNote.title}`
+            );
+          } catch (e) {
+            console.error('Auto-push to GitHub failed', e);
+          }
+        }
+      }
+
+      return newNote;
     });
     res.json(result);
   } catch (error) {
@@ -210,6 +263,53 @@ notesRouter.post('/:id/tags/:tagId', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error adding tag to note:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/notes/:id/github-push
+notesRouter.post('/:id/github-push', async (req: Request, res: Response) => {
+  const userId = (req as any).user.sub;
+  const { id } = req.params;
+  
+  try {
+    const result = await withUser(userId, async (client) => {
+      const { rows: noteRows } = await client.query('SELECT * FROM notes WHERE id = $1 AND user_id = $2', [id, userId]);
+      if (noteRows.length === 0) throw new Error('Note not found');
+      const note = noteRows[0];
+
+      const { rows: prefRows } = await client.query('SELECT preferences FROM user_preferences WHERE user_id = $1', [userId]);
+      if (prefRows.length === 0) throw new Error('Preferences not found');
+      
+      const prefs = prefRows[0].preferences || {};
+      if (!prefs.github_token || !prefs.github_repo) throw new Error('GitHub token and repo not configured');
+
+      const { decrypt, pushNoteToGithub } = await import('./github.js');
+      const token = decrypt(prefs.github_token);
+      let filename;
+      if (note.is_scratchpad) {
+         filename = 'scratchpad.md';
+      } else {
+         const sanitizedTitle = note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+         filename = `${sanitizedTitle}-${note.id.substring(0, 8)}.md`;
+      }
+      
+      await pushNoteToGithub(
+          token, 
+          prefs.github_repo, 
+          prefs.github_branch || 'main', 
+          prefs.github_notes_path || '', 
+          filename, 
+          note.content || '', 
+          `Update${note.is_scratchpad ? ' scratchpad' : `: ${note.title}`}`
+      );
+      
+      return { success: true };
+    });
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error pushing note to GitHub:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

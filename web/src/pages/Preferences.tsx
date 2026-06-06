@@ -7,6 +7,13 @@ export default function Preferences() {
   const queryClient = useQueryClient();
   const [theme, setTheme] = useState('dark');
   const [columns, setColumns] = useState(12);
+  const [githubRepo, setGithubRepo] = useState('');
+  const [githubBranch, setGithubBranch] = useState('main');
+  const [githubPath, setGithubPath] = useState('');
+  const [githubToken, setGithubToken] = useState('');
+  const [pushOnArchive, setPushOnArchive] = useState(false);
+  const [syncScratchpad, setSyncScratchpad] = useState(false);
+  
   const [showSaveMessage, setShowSaveMessage] = useState(false);
 
   const { isLoading } = useQuery({
@@ -16,6 +23,12 @@ export default function Preferences() {
       if (res) {
           if (res.theme) setTheme(res.theme);
           if (res.dashboard_columns) setColumns(res.dashboard_columns);
+          if (res.github_repo) setGithubRepo(res.github_repo);
+          if (res.github_branch) setGithubBranch(res.github_branch);
+          if (res.github_notes_path) setGithubPath(res.github_notes_path);
+          if (res.github_token) setGithubToken(res.github_token);
+          if (res.github_push_on_archive) setPushOnArchive(true);
+          if (res.github_sync_scratchpad) setSyncScratchpad(true);
       }
       return res;
     }
@@ -35,7 +48,13 @@ export default function Preferences() {
   const handleSave = () => {
       saveMutation.mutate({
           theme,
-          dashboard_columns: columns
+          dashboard_columns: columns,
+          github_repo: githubRepo,
+          github_branch: githubBranch,
+          github_notes_path: githubPath,
+          github_token: githubToken,
+          github_push_on_archive: pushOnArchive,
+          github_sync_scratchpad: syncScratchpad
       });
   };
 
@@ -101,6 +120,93 @@ export default function Preferences() {
                   <span className="text-sm text-slate-400">columns</span>
                </div>
                <p className="text-xs text-slate-500 mt-2">Adjust the resolution of the dashboard grid. Default is 12.</p>
+            </div>
+
+            <hr className="border-slate-800" />
+
+            {/* GitHub Offsite Backup */}
+            <div>
+               <h3 className="text-lg font-medium text-slate-100 mb-2">GitHub Offsite Backup</h3>
+               <p className="text-sm text-slate-400 mb-6 max-w-2xl">
+                   Automatically push your notes and scratchpads to a private GitHub repository for secure, version-controlled offsite backup and static site generation.
+               </p>
+
+               <div className="space-y-5 max-w-xl">
+                   <div>
+                       <label className="block text-sm font-medium text-slate-300 mb-1">GitHub Personal Access Token</label>
+                       <input 
+                          type="password"
+                          value={githubToken}
+                          onChange={(e) => setGithubToken(e.target.value)}
+                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 font-mono text-sm"
+                       />
+                       <p className="text-xs text-slate-500 mt-1.5">Needs `contents:write` scope for the target repository. Token is stored securely.</p>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4">
+                       <div>
+                           <label className="block text-sm font-medium text-slate-300 mb-1">Repository <span className="text-slate-500">(owner/repo)</span></label>
+                           <input 
+                              type="text"
+                              value={githubRepo}
+                              onChange={(e) => setGithubRepo(e.target.value)}
+                              placeholder="username/my-notes"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
+                           />
+                       </div>
+                       <div>
+                           <label className="block text-sm font-medium text-slate-300 mb-1">Branch</label>
+                           <input 
+                              type="text"
+                              value={githubBranch}
+                              onChange={(e) => setGithubBranch(e.target.value)}
+                              placeholder="main"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm"
+                           />
+                       </div>
+                   </div>
+
+                   <div>
+                       <label className="block text-sm font-medium text-slate-300 mb-1">Path Prefix</label>
+                       <input 
+                          type="text"
+                          value={githubPath}
+                          onChange={(e) => setGithubPath(e.target.value)}
+                          placeholder="src/content/notes/"
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 text-sm font-mono"
+                       />
+                       <p className="text-xs text-slate-500 mt-1.5">Optional directory prefix for notes. Leave blank for root.</p>
+                   </div>
+
+                   <div className="bg-slate-900/50 rounded-lg p-4 space-y-4 border border-slate-800">
+                       <label className="flex items-start gap-3 cursor-pointer">
+                           <input 
+                              type="checkbox"
+                              checked={pushOnArchive}
+                              onChange={(e) => setPushOnArchive(e.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900"
+                           />
+                           <div>
+                               <span className="block text-sm font-medium text-slate-200">Auto-push on archive</span>
+                               <span className="block text-xs text-slate-400 mt-0.5">Push a new Markdown file to GitHub every time you archive the scratchpad.</span>
+                           </div>
+                       </label>
+
+                       <label className="flex items-start gap-3 cursor-pointer">
+                           <input 
+                              type="checkbox"
+                              checked={syncScratchpad}
+                              onChange={(e) => setSyncScratchpad(e.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900"
+                           />
+                           <div>
+                               <span className="block text-sm font-medium text-slate-200">Sync scratchpad on autosave</span>
+                               <span className="block text-xs text-slate-400 mt-0.5">Continuously sync your active scratchpad to 'scratchpad.md' in the repository.</span>
+                           </div>
+                       </label>
+                   </div>
+               </div>
             </div>
 
             <hr className="border-slate-800" />

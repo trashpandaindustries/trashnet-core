@@ -67,7 +67,7 @@ The Bookmarks module acts as a personal link archive with automatic background m
 The Kanban module provides a flexible drag-and-drop board for task management.
 
 ### Features
-- **Columns:** Standard "To Do", "In Progress", and "Done" columns are provided by default, but you can add and rename columns to fit your workflow.
+- **Columns:** Standard "To Do", "In Progress", and "Done" columns are provided by default, but you can add and rename columns to fit your workflow (WIP).
 - **Card Details:** Tasks support Markdown descriptions, Priority settings (Low, Medium, High), and Due Dates.
 - **Drag & Drop:** Move cards smoothly between columns to update their status.
 - **Integration:** Tasks can be tagged. You can also pin high-priority items straight to your Dashboard to keep them in focus.

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban } from 'lucide-react';
+import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban, Github } from 'lucide-react';
 
 interface Tag {
   id: string;
@@ -141,6 +141,18 @@ export default function Notes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
+    }
+  });
+
+  const pushNoteToGithub = useMutation({
+    mutationFn: async (noteId: string) => {
+      return api.post(`/api/notes/${noteId}/github-push`);
+    },
+    onSuccess: () => {
+      alert('Pushed to GitHub successfully!');
+    },
+    onError: (e: any) => {
+      alert(`Push failed: ${e.message}`);
     }
   });
 
@@ -285,6 +297,13 @@ export default function Notes() {
                      className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
                  >
                      <Kanban size={14} /> Send to Kanban
+                 </button>
+                 <button 
+                     onClick={() => pushNoteToGithub.mutate(activeNote.id)}
+                     disabled={pushNoteToGithub.isPending}
+                     className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                 >
+                     <Github size={14} /> Push to GitHub
                  </button>
                  <button 
                    onClick={() => {
