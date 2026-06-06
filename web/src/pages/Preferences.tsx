@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Settings, Save, CheckCircle2 } from 'lucide-react';
@@ -16,23 +16,23 @@ export default function Preferences() {
   
   const [showSaveMessage, setShowSaveMessage] = useState(false);
 
-  const { isLoading } = useQuery({
+  const { data: prefsData, isLoading } = useQuery({
     queryKey: ['preferences'],
-    queryFn: async () => {
-      const res = await api.get('/api/preferences');
-      if (res) {
-          if (res.theme) setTheme(res.theme);
-          if (res.dashboard_columns) setColumns(res.dashboard_columns);
-          if (res.github_repo) setGithubRepo(res.github_repo);
-          if (res.github_branch) setGithubBranch(res.github_branch);
-          if (res.github_notes_path) setGithubPath(res.github_notes_path);
-          if (res.github_token) setGithubToken(res.github_token);
-          if (res.github_push_on_archive) setPushOnArchive(true);
-          if (res.github_sync_scratchpad) setSyncScratchpad(true);
-      }
-      return res;
-    }
+    queryFn: () => api.get('/api/preferences')
   });
+
+  useEffect(() => {
+    if (prefsData) {
+      if (prefsData.theme) setTheme(prefsData.theme);
+      if (prefsData.dashboard_columns) setColumns(prefsData.dashboard_columns);
+      if (prefsData.github_repo) setGithubRepo(prefsData.github_repo);
+      if (prefsData.github_branch) setGithubBranch(prefsData.github_branch);
+      if (prefsData.github_notes_path) setGithubPath(prefsData.github_notes_path);
+      if (prefsData.github_token) setGithubToken(prefsData.github_token);
+      if (prefsData.github_push_on_archive) setPushOnArchive(true);
+      if (prefsData.github_sync_scratchpad) setSyncScratchpad(true);
+    }
+  }, [prefsData]);
 
   const saveMutation = useMutation({
     mutationFn: async (prefs: any) => {
