@@ -11,7 +11,8 @@ export function DraggableModule({
   children,
   onDelete,
   isEditMode,
-  onResize
+  onResize,
+  totalColumns
 }: { 
   id: string, 
   x: number, 

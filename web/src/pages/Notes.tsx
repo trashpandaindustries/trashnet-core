@@ -408,7 +408,7 @@ export default function Notes() {
               value={content}
               onBlur={() => {
                 if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
-                updateScratchpad.mutate(content);
+                updateScratchpad.mutate({ content, title, filename });
               }}
               onChange={handleContentChange}
             />
