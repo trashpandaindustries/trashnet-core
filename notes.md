@@ -3,7 +3,7 @@
 ### Dashboard
 - Edit mode toggle — a padlock icon in the dashboard header. Unlocked state shows resize handles + remove buttons. Locking saves any pending layout changes.
 - Resize handles — bottom-right corner drag handle on each card. As you drag, it snaps to the nearest grid column/row boundary and updates the card's width/height live. On drop, fires the existing PUT /api/dashboard/modules/:id with new dimensions.
-- Portainer module icons, allow image linking or is there a big old databse of them we can use
+- Portainer module icons, allow image linking?
 
 ### Notes
 - Add MCP/LLM integration for summarizing or formatting notes.
@@ -25,4 +25,5 @@
 ### Platform Admin
 - Access and action logs. 
 
-
+### Websearch
+- when using the top bar search, and clicking "search web", it currently doesnt send the query you are searching for. It should autopopulate the search for what the user was searching for.

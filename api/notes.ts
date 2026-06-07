@@ -13,7 +13,7 @@ notesRouter.get('/scratchpad', async (req: Request, res: Response) => {
     const result = await withUser(userId, async (client) => {
       // Find the scratchpad for this user
       let { rows } = await client.query(`
-        SELECT id, title, content, updated_at 
+        SELECT id, title, content, filename, updated_at 
         FROM notes 
         WHERE is_scratchpad = true AND user_id = $1
         LIMIT 1
@@ -23,7 +23,7 @@ notesRouter.get('/scratchpad', async (req: Request, res: Response) => {
         const insertRes = await client.query(`
           INSERT INTO notes (user_id, title, is_scratchpad) 
           VALUES ($1, 'Scratchpad', true) 
-          RETURNING id, title, content, updated_at
+          RETURNING id, title, content, filename, updated_at
         `, [userId]);
         rows = insertRes.rows;
       }
@@ -39,15 +39,15 @@ notesRouter.get('/scratchpad', async (req: Request, res: Response) => {
 // PUT /api/notes/scratchpad
 notesRouter.put('/scratchpad', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;
-  const { content } = req.body;
+  const { content, filename } = req.body;
   try {
     const result = await withUser(userId, async (client) => {
       const { rows } = await client.query(`
         UPDATE notes 
-        SET content = $1, updated_at = NOW() 
-        WHERE is_scratchpad = true AND user_id = $2
-        RETURNING id, title, content, updated_at
-      `, [content, userId]);
+        SET content = COALESCE($1, content), filename = COALESCE($2, filename), updated_at = NOW() 
+        WHERE is_scratchpad = true AND user_id = $3
+        RETURNING id, title, content, filename, updated_at
+      `, [content !== undefined ? content : null, filename !== undefined ? filename : null, userId]);
       
       const updatedNote = rows[0];
 

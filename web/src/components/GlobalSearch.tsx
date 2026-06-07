@@ -187,7 +187,7 @@ export default function GlobalSearch() {
                     _category: 'web', 
                     _icon: Globe, 
                     _path: `/search?q=${encodeURIComponent(query.trim())}` 
-                  }], Globe, '/search')}
+                  }], Globe, `/search?q=${encodeURIComponent(query.trim())}`)}
                 </div>
               ) : (
                 <div className="px-4 py-8 flex flex-col items-center justify-center text-center">

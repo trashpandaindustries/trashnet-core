@@ -16,7 +16,8 @@ searchRouter.get('/web', async (req: Request, res: Response) => {
       const { rows } = await pool.query('SELECT value FROM settings WHERE key = $1', ['searxng_url']);
       let searxngUrl = 'http://searxng:8080';
       if (rows.length > 0) {
-          searxngUrl = JSON.parse(rows[0].value);
+          // The pg driver parses JSONB automatically. For a JSON string, it returns a JS string.
+          searxngUrl = typeof rows[0].value === 'string' ? rows[0].value : String(rows[0].value);
       }
       
       const searchUrl = `${searxngUrl}/search?q=${encodeURIComponent(q)}&format=json`;

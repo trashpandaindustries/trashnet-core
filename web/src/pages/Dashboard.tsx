@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 import { DroppableCell } from '../components/DroppableCell';
 import { DraggableModule } from '../components/DraggableModule';
-import { PlusCircle, Activity, Box, LayoutGrid } from 'lucide-react';
+import { Lock, Unlock, PlusCircle, Activity, Box, LayoutGrid } from 'lucide-react';
 
 import { Bookmark, RefreshCw, ExternalLink } from 'lucide-react';
 import { Kanban as KanbanIcon, Calendar, CheckCircle2 } from 'lucide-react';
@@ -353,6 +353,7 @@ export default function Dashboard() {
                      <div className="flex flex-col gap-1 min-w-0">
                         <div className="flex items-center gap-2">
                            <div className={`w-2 h-2 shrink-0 rounded-full ${svc.state === 'running' ? 'bg-emerald-500' : 'bg-rose-500'}`} title={svc.state}></div>
+                           {svc.icon && <img src={svc.icon} alt="" className="w-5 h-5 rounded-sm shrink-0 object-contain" />}
                            {svc.link ? (
                               <a href={svc.link} target="_blank" rel="noreferrer" className="text-slate-200 text-sm font-medium truncate hover:text-emerald-400 transition-colors">
                                  {svc.name}
@@ -397,6 +398,8 @@ export default function Dashboard() {
   });
   const columns = preferences?.dashboard_columns || 12;
 
+  const [isEditMode, setIsEditMode] = useState(false);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between mb-6 shrink-0">
@@ -405,19 +408,26 @@ export default function Dashboard() {
            Dashboard
          </h1>
          <span className="text-xs text-slate-500">{wsStatus}</span>
-         <div className="flex gap-2">
-           {!hasStats && (
+         <div className="flex items-center gap-2">
+           <button 
+             onClick={() => setIsEditMode(!isEditMode)}
+             className={`flex items-center justify-center w-8 h-8 rounded transition-colors ${isEditMode ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+             title={isEditMode ? 'Lock dashboard' : 'Unlock dashboard (edit layout)'}
+           >
+             {isEditMode ? <Unlock size={16} /> : <Lock size={16} />}
+           </button>
+           {isEditMode && !hasStats && (
               <button 
                 onClick={() => addModule.mutate({ module_type: 'system_stats', width: 3, height: 2, pos_x: 0, pos_y: 0 })}
-                className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors"
+                className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors h-8"
               >
                 <PlusCircle size={14} /> System Stats
               </button>
            )}
-           {!hasDocker && (
+           {isEditMode && !hasDocker && (
               <button 
                 onClick={() => addModule.mutate({ module_type: 'docker_services', width: 4, height: 3, pos_x: 3, pos_y: 0 })}
-                className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors"
+                className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition-colors h-8"
               >
                 <PlusCircle size={14} /> Docker Services
               </button>
@@ -447,6 +457,13 @@ export default function Dashboard() {
                    y={mod.pos_y}
                    width={mod.width}
                    height={mod.height}
+                   totalColumns={columns}
+                   isEditMode={isEditMode}
+                   onResize={(newWidth, newHeight) => {
+                       // Optimistic update of UI size happens internally in DraggableModule, 
+                       // but we also need to update the server.
+                       updateModule.mutate({ id: mod.id, updates: { width: newWidth, height: newHeight } });
+                   }}
                    onDelete={() => deleteModule.mutate(mod.id)}
                  >
                    {renderModuleContent(mod)}

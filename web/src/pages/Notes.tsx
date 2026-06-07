@@ -16,6 +16,7 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  filename?: string;
   updated_at: string;
   tags?: Tag[];
 }
@@ -23,6 +24,8 @@ interface Note {
 export default function Notes() {
   const queryClient = useQueryClient();
   const [content, setContent] = useState('');
+  const [title, setTitle] = useState('');
+  const [filename, setFilename] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<string>('Saved');
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,19 +66,23 @@ export default function Notes() {
   useEffect(() => {
     if (activeNote) {
       setContent(activeNote.content || '');
+      setTitle(activeNote.title || '');
+      setFilename(activeNote.filename || '');
     } else if (scratchpad) {
       setContent(scratchpad.content || '');
+      setTitle(scratchpad.title || 'Scratchpad');
+      setFilename(scratchpad.filename || '');
     }
   }, [scratchpad, activeNote]);
 
   const autosaveTimeout = useRef<NodeJS.Timeout | null>(null);
   
   const updateScratchpad = useMutation({
-    mutationFn: async (newContent: string) => {
+    mutationFn: async (payload: { content?: string, title?: string, filename?: string }) => {
       if (activeNote) {
-        return api.put(`/api/notes/${activeNote.id}`, { content: newContent });
+        return api.put(`/api/notes/${activeNote.id}`, payload);
       } else {
-        return api.put('/api/notes/scratchpad', { content: newContent });
+        return api.put('/api/notes/scratchpad', payload);
       }
     },
     onSuccess: () => {
@@ -91,7 +98,22 @@ export default function Notes() {
     
     if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
     autosaveTimeout.current = setTimeout(() => {
-      updateScratchpad.mutate(e.target.value);
+      updateScratchpad.mutate({ content: e.target.value });
+    }, 500);
+  };
+
+  const handleFieldChange = (field: 'title' | 'filename', val: string) => {
+    if (field === 'title') setTitle(val);
+    if (field === 'filename') setFilename(val);
+    setAutosaveStatus('Saving...');
+    
+    if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
+    autosaveTimeout.current = setTimeout(() => {
+      updateScratchpad.mutate({ 
+         content, 
+         title: field === 'title' ? val : title, 
+         filename: field === 'filename' ? val : filename 
+      });
     }, 500);
   };
 
@@ -260,13 +282,26 @@ export default function Notes() {
 
       <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
         <div className="h-14 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 bg-slate-900/50">
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-slate-100">
-              {activeNote ? activeNote.title : 'Scratchpad'}
-            </span>
-            <span className="text-xs text-slate-600">{autosaveStatus}</span>
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="flex flex-col w-full max-w-xs">
+              <input 
+                type="text"
+                value={title}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
+                placeholder={activeNote ? "Title" : "Scratchpad"}
+                className="font-bold text-slate-100 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded px-1 -ml-1 h-6 placeholder-slate-600"
+              />
+              <input 
+                type="text"
+                value={filename}
+                onChange={(e) => handleFieldChange('filename', e.target.value)}
+                placeholder="filename.md (optional)"
+                className="text-[10px] text-slate-400 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded px-1 -ml-1 h-4 font-mono placeholder-slate-600"
+              />
+            </div>
+            <span className="text-[10px] text-slate-600 shrink-0 bg-slate-800/50 px-2 py-0.5 rounded-full">{autosaveStatus}</span>
             {activeNote && (
-               <div className="relative ml-4">
+               <div className="relative ml-auto">
                  <button 
                    onClick={() => setShowTagMenu(!showTagMenu)}
                    className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md transition-colors"
