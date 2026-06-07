@@ -135,6 +135,12 @@ async function startServer() {
             UPDATE settings SET description = 'Interval to refresh system stats (ms)' WHERE key = 'stats_refresh_interval_ms' AND description IS NULL;
             UPDATE settings SET description = 'Interval to refresh Docker status (ms)' WHERE key = 'docker_refresh_interval_ms' AND description IS NULL;
         `).catch(() => {});
+        
+        await client.query(`
+            INSERT INTO settings (key, value, description) VALUES
+              ('searxng_url', '"http://searxng:8080"', 'URL for the SearXNG search API provider')
+            ON CONFLICT (key) DO NOTHING
+        `).catch((e) => console.log('Settings seed issue', e));
     } finally {
         client.release();
     }

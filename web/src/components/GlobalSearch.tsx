@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Bookmark, Kanban, ChevronRight } from 'lucide-react';
+import { Search, FileText, Bookmark, Kanban, ChevronRight, Globe } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useNavigate } from 'react-router';
@@ -51,12 +51,24 @@ export default function GlobalSearch() {
   });
 
   const flattenResults = () => {
-    if (!resultsData) return [];
-    return [
-      ...(resultsData.notes || []).map((n: any) => ({ ...n, _category: 'notes', _icon: FileText, _path: '/notes' })),
-      ...(resultsData.bookmarks || []).map((b: any) => ({ ...b, _category: 'bookmarks', _icon: Bookmark, _path: '/bookmarks' })),
-      ...(resultsData.kanban || []).map((k: any) => ({ ...k, _category: 'kanban', _icon: Kanban, _path: '/kanban' }))
-    ];
+    const list: any[] = [];
+    if (resultsData) {
+      list.push(...(resultsData.notes || []).map((n: any) => ({ ...n, _category: 'notes', _icon: FileText, _path: '/notes' })));
+      list.push(...(resultsData.bookmarks || []).map((b: any) => ({ ...b, _category: 'bookmarks', _icon: Bookmark, _path: '/bookmarks' })));
+      list.push(...(resultsData.kanban || []).map((k: any) => ({ ...k, _category: 'kanban', _icon: Kanban, _path: '/kanban' })));
+    }
+    
+    // Add Web Search option
+    if (query.trim()) {
+      list.push({
+        id: 'web-search',
+        title: `Search Web for "${query.trim()}"`,
+        _category: 'web',
+        _icon: Globe,
+        _path: `/search?q=${encodeURIComponent(query.trim())}`
+      });
+    }
+    return list;
   };
 
   const allItems = flattenResults();
@@ -169,6 +181,13 @@ export default function GlobalSearch() {
                   {renderGroup('Notes', resultsData?.notes, FileText, '/notes')}
                   {renderGroup('Bookmarks', resultsData?.bookmarks, Bookmark, '/bookmarks')}
                   {renderGroup('Kanban', resultsData?.kanban, Kanban, '/kanban')}
+                  {query.trim() && renderGroup('Web Options', [{ 
+                    id: 'web-search', 
+                    title: `Search Web for "${query.trim()}"`, 
+                    _category: 'web', 
+                    _icon: Globe, 
+                    _path: `/search?q=${encodeURIComponent(query.trim())}` 
+                  }], Globe, '/search')}
                 </div>
               ) : (
                 <div className="px-4 py-8 flex flex-col items-center justify-center text-center">

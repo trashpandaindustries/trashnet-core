@@ -1,10 +1,45 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from './auth.js';
-import { withUser } from './db.js';
+import { pool, withUser } from './db.js';
 
 export const searchRouter = Router();
 
 searchRouter.use(requireAuth);
+
+searchRouter.get('/web', async (req: Request, res: Response) => {
+  const q = req.query.q as string || '';
+  if (!q) {
+      return res.status(400).json({ error: 'Missing query' });
+  }
+
+  try {
+      const { rows } = await pool.query('SELECT value FROM settings WHERE key = $1', ['searxng_url']);
+      let searxngUrl = 'http://searxng:8080';
+      if (rows.length > 0) {
+          searxngUrl = JSON.parse(rows[0].value);
+      }
+      
+      const searchUrl = `${searxngUrl}/search?q=${encodeURIComponent(q)}&format=json`;
+      console.log('Fetching SearXNG:', searchUrl);
+      
+      const response = await fetch(searchUrl, {
+          method: 'GET',
+          headers: {
+              'Accept': 'application/json'
+          }
+      });
+      
+      if (!response.ok) {
+          throw new Error(`SearXNG returned ${response.status}`);
+      }
+      
+      const data = await response.json();
+      res.json(data);
+  } catch (error: any) {
+      console.error('Error fetching web search:', error);
+      res.status(500).json({ error: error.message || 'Web search failed' });
+  }
+});
 
 searchRouter.get('/', async (req: Request, res: Response) => {
   const userId = (req as any).user.sub;

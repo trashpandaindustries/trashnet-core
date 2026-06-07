@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import Notes from './pages/Notes';
 import Bookmarks from './pages/Bookmarks';
 import Kanban from './pages/Kanban';
+import WebSearch from './pages/WebSearch';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './components/ThemeProvider';
 
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/kanban" element={<Kanban />} />
               <Route path="/feeds" element={<Feeds />} />
               <Route path="/files" element={<Files />} />
+              <Route path="/search" element={<WebSearch />} />
               <Route path="/preferences" element={<Preferences />} />
               <Route path="/admin" element={<Admin />} />
             </Route>

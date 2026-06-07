@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Home, FileText, Bookmark, LayoutDashboard, Rss, Folder, LogOut, Settings, ShieldAlert } from 'lucide-react';
+import { Home, FileText, Bookmark, LayoutDashboard, Rss, Folder, LogOut, Settings, ShieldAlert, Globe } from 'lucide-react';
 import { api } from '../lib/api';
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Kanban', href: '/kanban', icon: LayoutDashboard },
   { name: 'Feeds', href: '/feeds', icon: Rss },
   { name: 'Files', href: '/files', icon: Folder },
+  { name: 'Web Search', href: '/search', icon: Globe },
 ];
 
 export default function Sidebar() {

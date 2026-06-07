@@ -54,6 +54,17 @@ services:
     networks:
       - trashnet-net
 
+  searxng:
+    image: searxng/searxng:latest
+    container_name: trashnet-searxng
+    restart: unless-stopped
+    volumes:
+      - ./docker/searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    networks:
+      - trashnet-net
+
 volumes:
   caddy_data:
   caddy_config:
