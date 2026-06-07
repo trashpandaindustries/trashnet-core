@@ -98,7 +98,11 @@ export default function Notes() {
     
     if (autosaveTimeout.current) clearTimeout(autosaveTimeout.current);
     autosaveTimeout.current = setTimeout(() => {
-      updateScratchpad.mutate({ content: e.target.value });
+      updateScratchpad.mutate({ 
+        content: e.target.value,
+        title,
+        filename
+      });
     }, 500);
   };
 
