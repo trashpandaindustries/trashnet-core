@@ -7,7 +7,7 @@ Welcome to Trashnet-Core, your unified personal operations dashboard. This guide
 The Dashboard is the central hub of Trashnet-Core, designed as a customizable grid of modules.
 
 ### Grid Layout & Pinning
-- **Drag-and-Drop:** You can freely drag modules around the grid to rearrange them. Layouts are saved automatically for your user account.
+- **Edit Mode:** Toggle the Lock/Unlock button in the header to enter edit mode. While unlocked, you can freely drag modules around the grid, resize them using the drag handle in the bottom-right corner, and remove them from the dashboard. Layout changes are saved automatically.
 - **Pinning Content:** Across the app, you will see options to "Pin to Dashboard" (or "Show on Dashboard") on Bookmarks, Kanban items, Notes, and Feed sources. Pinning an item creates a dedicated module for it on your home screen.
 - **System Modules:** By default, you can add two core homelab modules using the "System Stats" or "Docker Services" buttons in the top right corner of the dashboard screen.
 
@@ -26,10 +26,9 @@ Example:
       - "dashboard.show=true"
       - "dashboard.url=http://192.168.1.69:1221"
       - "dashboard.name=Papra"
-      - "dashboard.icon=papra"
+      - "dashboard.icon=https://example.com/icon.png"
       - "dashboard.description=Document Management"
 ```
-(icon is not implemented as of yet)
 
 
 ---
@@ -45,6 +44,7 @@ The primary input area is a persistent Scratchpad. It auto-saves your text, allo
 
 ### Archiving and Managing Notes
 - **Archive:** Once you’ve drafted a note you want to keep long-term, click "Archive". This moves the content into your archived notes library and clears out the scratchpad for new thoughts.
+- **Custom Filenames:** You can provide a custom `.md` filename for your notes directly in the editor header, which is especially useful for GitHub sync.
 - **Tags:** You can apply custom, color-coded tags to any archived note for quick filtering and searching.
 - **Send to Kanban:** Need to take action on a note? You can instantly convert an archived note into a Kanban task using the "Send to Kanban" feature.
 
@@ -109,6 +109,23 @@ The File Browser module provides secure, read-only access to a designated storag
 - **File Downloads:** Download any file securely using the download action on the item row or via the preview dialog.
 - **Search Filtering:** Quickly filter files in the current directory using the search input.
 - **Security:** Access is strictly read-only, logging every preview and download action for audit purposes, with protections built-in against path traversal attempts.
+
+### Docker Configuration
+To expose your homelab storage to the file browser, you must configure a bind mount on the `trashnet-api` container within your `docker-compose.yml`. Use the `STORAGE_MOUNT_PATH` environment variable to define where the drive is mounted inside the container.
+
+Example `docker-compose.yml` snippet:
+
+```yaml
+  api:
+    # ... other settings
+    environment:
+      # ... other env vars
+      - STORAGE_MOUNT_PATH=/mnt/storage
+    volumes:
+      # Map your host drive to the container path, strongly recommended as read-only (ro)
+      - /path/to/your/host/storage:/mnt/storage:ro
+```
+
 
 ---
 

@@ -107,6 +107,66 @@ filesRouter.get('/', async (req, res) => {
     }
 });
 
+filesRouter.post('/reindex', async (req, res) => {
+    try {
+        const user = (req as any).user;
+        if (user?.role !== 'admin') {
+            return res.status(403).json({ error: 'Admin only' });
+        }
+        
+        let indexedCount = 0;
+        const start = Date.now();
+
+        async function crawl(dirPath: string) {
+            let entries;
+            try {
+                entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+            } catch (err) {
+                console.error(`Failed to read directory ${dirPath}`, err);
+                return;
+            }
+
+            for (const entry of entries) {
+                const fullPath = path.join(dirPath, entry.name);
+                
+                if (entry.isDirectory()) {
+                    await crawl(fullPath);
+                } else if (entry.isFile()) {
+                    const relativePath = path.relative(STORAGE_ROOT, fullPath);
+                    // Store POSIX path starting with /
+                    const dbPath = '/' + relativePath.split(path.sep).join('/');
+                    const ext = path.extname(entry.name).toLowerCase().replace('.', '') || null;
+                    
+                    try {
+                        const stat = await fs.promises.stat(fullPath);
+                        await pool.query(`
+                            INSERT INTO file_index (path, filename, extension, size_bytes, modified_at)
+                            VALUES ($1, $2, $3, $4, $5)
+                            ON CONFLICT (path) DO UPDATE SET
+                                filename = EXCLUDED.filename,
+                                extension = EXCLUDED.extension,
+                                size_bytes = EXCLUDED.size_bytes,
+                                modified_at = EXCLUDED.modified_at,
+                                indexed_at = NOW()
+                        `, [dbPath, entry.name, ext, stat.size, stat.mtime]);
+                        indexedCount++;
+                    } catch (err) {
+                        console.error(`Failed to index file ${dbPath}`, err);
+                    }
+                }
+            }
+        }
+
+        await crawl(STORAGE_ROOT);
+        
+        const durationMs = Date.now() - start;
+        res.json({ indexed: indexedCount, durationMs });
+    } catch (e) {
+        console.error("Reindex error:", e);
+        res.status(500).json({ error: 'Failed to reindex files' });
+    }
+});
+
 filesRouter.get('/download', async (req, res) => {
     try {
         const userId = (req as any).user?.sub;

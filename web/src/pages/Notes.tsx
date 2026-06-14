@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban, Github, AlertTriangle } from 'lucide-react';
+import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban, Github, AlertTriangle, FileWarning, TerminalSquare } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
+import { validateFrontmatter, stripFrontmatter, FrontmatterValidationResult } from '../lib/frontmatter';
 
 interface Tag {
   id: string;
@@ -42,6 +43,10 @@ export default function Notes() {
   const [ghFilename, setGhFilename] = useState('');
   const [ghMessage, setGhMessage] = useState('');
   const [ghCheckResult, setGhCheckResult] = useState<{exists: boolean, filename: string} | null>(null);
+
+  // Frontmatter Validation State
+  const [showFmModal, setShowFmModal] = useState(false);
+  const [fmResult, setFmResult] = useState<FrontmatterValidationResult | null>(null);
 
   const { data: prefs } = useQuery<any>({
     queryKey: ['preferences'],
@@ -130,8 +135,19 @@ export default function Notes() {
       queryClient.invalidateQueries({ queryKey: ['scratchpad'] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       setActiveNote(null);
+      setShowFmModal(false);
     }
   });
+
+  const handleArchiveClick = () => {
+    const result = validateFrontmatter(content);
+    if (result.hasFrontmatter) {
+      setFmResult(result);
+      setShowFmModal(true);
+    } else {
+      archiveNote.mutate();
+    }
+  };
 
   const convertToKanban = useMutation({
     mutationFn: async () => {
@@ -365,7 +381,7 @@ export default function Notes() {
           <div className="flex items-center gap-3">
              {!activeNote ? (
                <button 
-                 onClick={() => archiveNote.mutate()}
+                 onClick={handleArchiveClick}
                  disabled={archiveNote.isPending || !content.trim()}
                  className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
                >
@@ -414,14 +430,95 @@ export default function Notes() {
             />
           </div>
           <div className="w-1/2 min-w-0 overflow-y-auto p-8 bg-slate-950/50">
-            <div className="prose prose-invert prose-emerald max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]}>
-                {content || '*Preview will appear here...*'}
-              </Markdown>
-            </div>
+            {(() => {
+              const previewValidation = validateFrontmatter(content);
+              const displayContent = stripFrontmatter(content);
+              return (
+                <>
+                  {previewValidation.hasFrontmatter && (
+                    <div className="mb-6 p-4 rounded-md bg-slate-900 border border-slate-800 font-mono text-xs shadow-inner">
+                      <div className="flex items-center gap-2 mb-3 text-slate-500 font-bold uppercase tracking-wider">
+                        <TerminalSquare size={14} />
+                        <h4>Frontmatter</h4>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(previewValidation.parsed).map(([k, v]) => (
+                           <div key={k} className="flex"><span className="text-emerald-500/80 w-24 shrink-0">{k}:</span> <span className="text-slate-300 break-words">{v as string}</span></div>
+                        ))}
+                        {Object.keys(previewValidation.parsed).length === 0 && (
+                          <div className="text-slate-600 italic">No structured fields parsed</div>
+                        )}
+                      </div>
+                      {!previewValidation.isValid && (
+                         <div className="mt-3 pt-3 border-t border-rose-500/20 text-rose-400">
+                           <div className="flex items-center gap-1.5 mb-1 text-[10px] uppercase font-bold tracking-wider rounded">
+                             <AlertTriangle size={12} /> Malformed
+                           </div>
+                           <ul className="list-disc list-inside space-y-0.5">
+                              {previewValidation.errors.map((e, i) => <li key={i}>{e}</li>)}
+                           </ul>
+                         </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="prose prose-invert prose-emerald max-w-none">
+                    <Markdown remarkPlugins={[remarkGfm]}>
+                      {displayContent || '*Preview will appear here...*'}
+                    </Markdown>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
+
+      {/* Frontmatter Check Modal */}
+      <Dialog open={showFmModal} onClose={() => setShowFmModal(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-md w-full bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl">
+            {fmResult?.isValid ? (
+               <>
+                  <div className="flex items-center gap-3 mb-4">
+                      <Check size={24} className="text-emerald-500" />
+                      <Dialog.Title className="text-lg font-semibold text-slate-100">Valid Frontmatter</Dialog.Title>
+                  </div>
+                  <p className="text-sm text-slate-400 mb-6">Structured metadata was detected and appears valid. Proceed with archiving?</p>
+               </>
+            ) : (
+               <>
+                  <div className="flex items-center gap-3 mb-4">
+                      <FileWarning size={24} className="text-amber-500" />
+                      <Dialog.Title className="text-lg font-semibold text-slate-100">Malformed Frontmatter</Dialog.Title>
+                  </div>
+                  <p className="text-sm text-slate-400 mb-4">We detected a frontmatter block, but it has structural issues:</p>
+                  <div className="bg-slate-950 border border-amber-500/20 rounded p-4 mb-6">
+                      <ul className="list-disc list-inside space-y-1 text-xs text-amber-500 font-mono">
+                          {fmResult?.errors.map((err, i) => <li key={i}>{err}</li>)}
+                      </ul>
+                  </div>
+               </>
+            )}
+            
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowFmModal(false)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => archiveNote.mutate()}
+                disabled={archiveNote.isPending}
+                className={`px-4 py-2 text-sm rounded-md font-medium transition-colors text-white disabled:opacity-50 ${fmResult?.isValid ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'}`}
+              >
+                {archiveNote.isPending ? 'Archiving...' : (fmResult?.isValid ? 'Archive Note' : 'Archive Anyway')}
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
 
       {/* GitHub Push Modal */}
       <Dialog open={showGithubModal} onClose={() => setShowGithubModal(false)} className="relative z-50">
