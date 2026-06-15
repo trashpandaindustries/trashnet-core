@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { Archive, Edit3, Tag as TagIcon, X, Check, Search, PlusCircle, Kanban, Github, AlertTriangle, FileWarning, TerminalSquare } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
 import { validateFrontmatter, stripFrontmatter, FrontmatterValidationResult } from '../lib/frontmatter';
+import { TagPicker } from '../components/TagPicker';
 
 interface Tag {
   id: string;
@@ -320,63 +321,20 @@ export default function Notes() {
               />
             </div>
             <span className="text-[10px] text-slate-600 shrink-0 bg-slate-800/50 px-2 py-0.5 rounded-full">{autosaveStatus}</span>
-            {activeNote && (
-               <div className="relative ml-auto">
-                 <button 
-                   onClick={() => setShowTagMenu(!showTagMenu)}
-                   className="flex items-center gap-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md transition-colors"
-                 >
-                   <TagIcon size={14} /> Tags
-                 </button>
-                 {showTagMenu && (
-                   <div className="absolute top-10 left-0 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-2xl z-50 p-3">
-                     <div className="text-xs text-slate-500 mb-2 font-semibold">NOTE TAGS</div>
-                     <div className="flex flex-wrap gap-1 mb-4">
-                       {activeNote.tags?.map(t => (
-                         <span key={t.id} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: `${t.color}20`, color: t.color }}>
-                           {t.name} 
-                           <X size={10} className="cursor-pointer hover:opacity-50" onClick={() => removeTagFromNote.mutate({ noteId: activeNote.id, tagId: t.id })}/>
-                         </span>
-                       ))}
-                       {(!activeNote.tags || activeNote.tags.length === 0) && <span className="text-xs text-slate-600">No tags</span>}
-                     </div>
-                     <div className="text-xs text-slate-500 mb-2 font-semibold">AVAILABLE TAGS</div>
-                     <div className="max-h-32 overflow-y-auto mb-2 space-y-1">
-                        {tagsData?.map(t => {
-                          const hasTag = activeNote.tags?.find(nt => nt.id === t.id);
-                          return (
-                            <button 
-                              key={t.id} 
-                              onClick={() => !hasTag && addTagToNote.mutate({ noteId: activeNote.id, tagId: t.id })}
-                              className="w-full text-left text-xs p-1.5 hover:bg-slate-800 rounded flex items-center justify-between text-slate-300"
-                            >
-                              <span style={{ color: t.color }}>{t.name}</span>
-                              {hasTag && <Check size={12} className="text-emerald-500" />}
-                            </button>
-                          );
-                        })}
-                     </div>
-                     <div className="flex items-center gap-2 border-t border-slate-800 pt-2 mt-2">
-                       <input 
-                         type="text" 
-                         value={newTagName}
-                         onChange={e => setNewTagName(e.target.value)}
-                         placeholder="New tag..."
-                         className="flex-1 bg-slate-950 border border-slate-800 rounded text-xs px-2 py-1 focus:outline-none focus:border-emerald-500"
-                         onKeyDown={e => {
-                           if(e.key === 'Enter' && newTagName) {
-                              createTag.mutate(newTagName);
-                           }
-                         }}
-                       />
-                       <button onClick={() => newTagName && createTag.mutate(newTagName)} className="text-slate-500 hover:text-emerald-500">
-                         <PlusCircle size={14} />
-                       </button>
-                     </div>
-                   </div>
-                 )}
-               </div>
-            )}
+            <div className="ml-auto">
+              {(activeNote || scratchpad) && (
+                <TagPicker
+                  itemId={activeNote ? activeNote.id : scratchpad!.id}
+                  appliedTags={activeNote ? (activeNote.tags || []) : (scratchpad?.tags || [])}
+                  onAddTag={async (tagId) => {
+                    await addTagToNote.mutateAsync({ noteId: activeNote ? activeNote.id : scratchpad!.id, tagId });
+                  }}
+                  onRemoveTag={async (tagId) => {
+                    await removeTagFromNote.mutateAsync({ noteId: activeNote ? activeNote.id : scratchpad!.id, tagId });
+                  }}
+                />
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
              {!activeNote ? (

@@ -138,7 +138,9 @@ async function startServer() {
         
         await client.query(`
             INSERT INTO settings (key, value, description) VALUES
-              ('searxng_url', '"http://searxng:8080"', 'URL for the SearXNG search API provider')
+              ('searxng_url', '"http://searxng:8080"', 'URL for the SearXNG search API provider'),
+              ('portainer_env', '1', 'Portainer environment ID (often 1 or 2)'),
+              ('portainer_ignore_ssl', 'false', 'Set to true to ignore SSL certificate validation for Portainer API')
             ON CONFLICT (key) DO NOTHING
         `).catch((e) => console.log('Settings seed issue', e));
     } finally {

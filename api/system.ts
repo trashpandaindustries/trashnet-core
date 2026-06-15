@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import os from 'os';
 import { requireAuth } from './auth.js';
 import { pool } from './db.js';
+import fs from 'fs';
+import path from 'path';
 
 export const systemRouter = Router();
 
@@ -23,6 +25,22 @@ export async function getSystemStats() {
   const freemem = os.freemem();
   const uptime = os.uptime();
 
+  let disk = { total: 0, free: 0, used: 0 };
+  try {
+    const STORAGE_ROOT = process.env.STORAGE_MOUNT_PATH || path.join(process.cwd(), 'assets');
+    const stat = await fs.promises.statfs(STORAGE_ROOT);
+    const total = stat.blocks * stat.bsize;
+    // bavail is the free blocks available to unprivileged user
+    const free = stat.bavail * stat.bsize;
+    disk = {
+      total,
+      free,
+      used: total - free
+    };
+  } catch (err) {
+    console.error('Failed to statfs storage root', err);
+  }
+
   // Basic representation
   return {
     cpuLoad: loadavg, // [1m, 5m, 15m]
@@ -31,9 +49,8 @@ export async function getSystemStats() {
       free: freemem,
       used: totalmem - freemem
     },
+    disk: disk,
     uptime: uptime
-    // Disk usage is complex in plain node without spawning 'df' or using 'diskspace' package.
-    // For now we will return a stub or ignore disk usage.
   };
 }
 

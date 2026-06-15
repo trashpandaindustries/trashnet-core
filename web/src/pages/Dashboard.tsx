@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { api } from '../lib/api';
 import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 import { DroppableCell } from '../components/DroppableCell';
 import { DraggableModule } from '../components/DraggableModule';
 import { Lock, Unlock, PlusCircle, Activity, Box, LayoutGrid } from 'lucide-react';
 
-import { Bookmark, RefreshCw, ExternalLink } from 'lucide-react';
+import { Bookmark, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Kanban as KanbanIcon, Calendar, CheckCircle2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -60,6 +61,12 @@ function FeedSourceModule({ refId }: { refId: string }) {
            ></div>
         </div>
       </div>
+      
+      {source.failure_count > 3 && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-2 py-1.5 rounded mb-2 flex items-center gap-2 shrink-0">
+           <AlertTriangle size={12} /> Sync failing ({source.failure_count} retries)
+        </div>
+      )}
       
       <div className="flex-1 overflow-y-auto pr-1 space-y-3 relative">
         {!items || items.length === 0 ? (
@@ -124,11 +131,13 @@ function KanbanItemModule({ refId }: { refId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden group">
       <div className="flex items-center gap-2 text-indigo-400 font-bold mb-3 shrink-0 uppercase tracking-wider text-xs px-1">
-        <CheckCircle2 size={14} /> Todo
+        <CheckCircle2 size={14} /> {item.column_name || 'Todo'}
       </div>
       
       <div className="flex-1 flex flex-col min-h-0 relative">
-        <h4 className="font-semibold text-slate-200 text-base leading-tight mb-2 shrink-0">{item.title}</h4>
+        <h4 className="font-semibold text-slate-200 text-base leading-tight mb-2 shrink-0">
+           <Link to={`/kanban`} className="hover:text-indigo-400 hover:underline">{item.title}</Link>
+        </h4>
         
         {item.description && (
           <div className="text-xs text-slate-400 line-clamp-3 leading-relaxed mb-3 min-h-0 flex-1 markdown-body-micro">
@@ -305,6 +314,10 @@ export default function Dashboard() {
        const memTotalGB = (wsData.stats.memory.total / 1024 / 1024 / 1024).toFixed(1);
        const load = wsData.stats.cpuLoad ? wsData.stats.cpuLoad[0].toFixed(2) : '0.00';
        const uptimeDays = Math.floor(wsData.stats.uptime / 86400);
+       
+       const diskUsedGB = wsData.stats.disk ? (wsData.stats.disk.used / 1024 / 1024 / 1024).toFixed(1) : '0.0';
+       const diskTotalGB = wsData.stats.disk ? (wsData.stats.disk.total / 1024 / 1024 / 1024).toFixed(1) : '0.0';
+
        return (
          <div className="flex flex-col gap-4 h-full text-sm">
            <div className="flex items-center gap-2 text-emerald-400 font-bold mb-2">
@@ -319,6 +332,10 @@ export default function Dashboard() {
               <span className="text-slate-200 font-mono">{memUsedGB}G / {memTotalGB}G</span>
            </div>
            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+              <span className="text-slate-500">Disk Usage</span>
+              <span className="text-slate-200 font-mono">{diskUsedGB}G / {diskTotalGB}G</span>
+           </div>
+           <div className="flex justify-between items-center pb-2">
               <span className="text-slate-500">Uptime</span>
               <span className="text-slate-200 font-mono">{uptimeDays}d {Math.floor((wsData.stats.uptime % 86400) / 3600)}h</span>
            </div>

@@ -145,9 +145,22 @@ export default function Bookmarks() {
   );
 }
 
+import { TagPicker } from '../components/TagPicker';
+
 function BookmarkCard({ bookmark, onDelete, onTogglePin }: { bookmark: any, onDelete: (id:string)=>void, onTogglePin: (id:string, show:boolean)=>void }) {
+  const queryClient = useQueryClient();
   const isPending = bookmark.scrape_status === 'pending';
   const isFailed = bookmark.scrape_status === 'failed';
+
+  const addTag = useMutation({
+    mutationFn: async (tagId: string) => api.post(`/api/bookmarks/${bookmark.id}/tags/${tagId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
+  });
+
+  const removeTag = useMutation({
+    mutationFn: async (tagId: string) => api.delete(`/api/bookmarks/${bookmark.id}/tags/${tagId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookmarks'] })
+  });
 
   return (
     <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl overflow-hidden hover:border-slate-600 transition-colors group flex flex-col h-64">
@@ -213,15 +226,21 @@ function BookmarkCard({ bookmark, onDelete, onTogglePin }: { bookmark: any, onDe
         )}
 
         <div className="mt-auto pt-3 border-t border-slate-700/50 flex items-center justify-between">
-           <a href={bookmark.url} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:text-slate-400 truncate max-w-[200px]">
+           <a href={bookmark.url} target="_blank" rel="noreferrer" className="text-xs text-slate-500 hover:text-slate-400 truncate max-w-[150px]">
              {new URL(bookmark.url).hostname}
            </a>
-           <div className="flex gap-1">
+           <div className="flex items-center gap-1">
              {bookmark.tags && bookmark.tags.map((t: any) => (
-                <span key={t.id} className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
+                <span key={t.id} className="text-[10px] px-1.5 py-0.5 rounded-sm border border-slate-700/50" style={{ backgroundColor: `${t.color}15`, color: t.color }}>
                   {t.name}
                 </span>
              ))}
+             <TagPicker 
+                itemId={bookmark.id}
+                appliedTags={bookmark.tags || []}
+                onAddTag={async (id) => { await addTag.mutateAsync(id); }}
+                onRemoveTag={async (id) => { await removeTag.mutateAsync(id); }}
+             />
            </div>
         </div>
       </div>

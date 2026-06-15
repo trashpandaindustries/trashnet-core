@@ -264,7 +264,14 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
                      Items Array Path
                      <span className="text-[10px] text-slate-600 normal-case font-normal">(Leave blank if root is array)</span>
                    </label>
-                   <input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 font-mono text-sm focus:outline-none focus:border-indigo-500" value={formData.items_path} onChange={e => setFormData({...formData, items_path: e.target.value})} placeholder="e.g. data.results" />
+                   <input type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-slate-200 font-mono text-sm focus:outline-none focus:border-indigo-500" value={formData.items_path} onChange={e => setFormData({...formData, items_path: e.target.value})} 
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={e => {
+                             e.preventDefault();
+                             const droppedPath = e.dataTransfer.getData('text/plain');
+                             if (droppedPath) setFormData({...formData, items_path: droppedPath});
+                          }}
+                          placeholder="e.g. data.results" />
                 </div>
               )}
               <div className="pt-2">
@@ -304,6 +311,14 @@ function FeedEditor({ source, onBack }: { source: any, onBack: () => void }) {
                     onChange={e => updateMapping(field, e.target.value)} 
                     onFocus={() => setFocusedField(field)}
                     onBlur={() => setTimeout(() => setFocusedField(null), 200)}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => {
+                      e.preventDefault();
+                      const droppedPath = e.dataTransfer.getData('text/plain');
+                      if (droppedPath) {
+                         updateMapping(field, droppedPath);
+                      }
+                    }}
                     placeholder="e.g. some.dot.path" 
                   />
                 </div>

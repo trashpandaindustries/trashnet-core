@@ -179,12 +179,14 @@ kanbanRouter.get('/items/:id', async (req: any, res) => {
         const result = await withUser(req.user.sub, async (client) => {
             return client.query(`
                 SELECT i.*, 
+                   c.name as column_name,
                    COALESCE(json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color)) FILTER (WHERE t.id IS NOT NULL), '[]') as tags
                 FROM kanban_items i
+                LEFT JOIN kanban_columns c ON i.column_id = c.id
                 LEFT JOIN kanban_item_tags it ON i.id = it.item_id
                 LEFT JOIN tags t ON it.tag_id = t.id
                 WHERE i.id = $1 AND i.user_id = $2
-                GROUP BY i.id
+                GROUP BY i.id, c.name
             `, [req.params.id, req.user.sub]);
         });
         

@@ -144,7 +144,7 @@ export default function Files() {
   }, [files]);
 
   return (
-    <div className="max-w-7xl mx-auto flex flex-col h-full pl-6 pr-6 pt-6 pb-0">
+    <div className="w-full flex flex-col h-full pl-6 pr-6 pt-6 pb-0">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 shrink-0 gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
@@ -168,7 +168,7 @@ export default function Files() {
       <div className="flex flex-1 overflow-hidden gap-6 pb-6">
         
         {/* Left Pane: File List */}
-        <div className="flex-1 bg-[#0f111a] border border-slate-800 rounded-xl overflow-hidden flex flex-col min-w-0">
+        <div className="flex-1 lg:max-w-[500px] xl:max-w-[650px] 2xl:max-w-[800px] bg-[#0f111a] border border-slate-800 rounded-xl overflow-hidden flex flex-col min-w-0">
             {/* Breadcrumbs */}
             <div className="bg-slate-800/40 p-4 border-b border-slate-800 flex items-center gap-2 shrink-0 overflow-x-auto whitespace-nowrap">
               <button
@@ -290,7 +290,7 @@ export default function Files() {
         </div>
 
         {/* Right Pane: Preview / Meta Data */}
-        <div className="hidden lg:flex w-96 xl:w-[480px] bg-[#0f111a] border border-slate-800 rounded-xl flex-col overflow-hidden shrink-0">
+        <div className="hidden lg:flex flex-1 min-w-0 bg-[#0f111a] border border-slate-800 rounded-xl flex-col overflow-hidden">
             {previewFile ? (
                <>
                  <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50 shrink-0">
