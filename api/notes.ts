@@ -97,7 +97,7 @@ notesRouter.post('/scratchpad/archive', async (req: Request, res: Response) => {
 
       // Title extraction (first line)
       let title = 'Untitled';
-      const firstLineMatch = content.trim().split('\\n')[0];
+      const firstLineMatch = content.trim().split('\n')[0];
       if (firstLineMatch) {
          title = firstLineMatch.replace(/^#+\\s*/, '').substring(0, 50).trim() || 'Untitled';
       }

@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import http from 'http';
@@ -45,6 +46,9 @@ async function startServer() {
         // Drop the old column and table
         await client.query(`ALTER TABLE kanban_items DROP COLUMN IF EXISTS column_id CASCADE`).catch(() => {});
         await client.query(`DROP TABLE IF EXISTS kanban_columns CASCADE`).catch(() => {});
+        
+        // Drop the status check constraint to allow custom column names
+        await client.query(`ALTER TABLE kanban_items DROP CONSTRAINT IF EXISTS kanban_items_status_check CASCADE`).catch(() => {});
 
         // Run feed migration
         const feedSchema = `
@@ -157,6 +161,7 @@ async function startServer() {
   startPoller();
 
   app.use(express.json());
+  app.use(cookieParser());
 
   // API Routes
   app.use('/api/auth', authRouter);
@@ -188,7 +193,13 @@ async function startServer() {
   wss.on('connection', (ws: any, req: any) => {
     console.log('[WS] Connection attempt');
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const token = url.searchParams.get('token');
+    let token = url.searchParams.get('token');
+    
+    if (!token && req.headers.cookie) {
+       const cookiePkg = require('cookie');
+       const cookies = cookiePkg.parse(req.headers.cookie);
+       if (cookies.token) token = cookies.token;
+    }
     
     if (!token) {
         console.log('[WS] Rejected: Auth missing');

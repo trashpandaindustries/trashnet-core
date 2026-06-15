@@ -230,9 +230,8 @@ export default function Dashboard() {
   
   // WS Connection
   useEffect(() => {
-    const token = localStorage.getItem('token');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/system/live?token=${token}`;
+    const wsUrl = `${protocol}//${window.location.host}/api/system/live`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => setWsStatus('Connected');
@@ -258,7 +257,7 @@ export default function Dashboard() {
   }, []);
 
   const { data: modules = [] } = useQuery<ModuleConfig[]>({
-    queryKey: ['dashboard', 'modules'],
+    queryKey: ['dashboard_modules'],
     queryFn: () => api.get('/api/dashboard/modules')
   });
 
@@ -266,21 +265,21 @@ export default function Dashboard() {
     mutationFn: (args: { id: string, updates: Partial<ModuleConfig> }) => {
       return api.put(`/api/dashboard/modules/${args.id}`, args.updates);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard', 'modules'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard_modules'] })
   });
 
   const addModule = useMutation({
     mutationFn: (args: Partial<ModuleConfig>) => {
       return api.post('/api/dashboard/modules', args);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard', 'modules'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard_modules'] })
   });
 
   const deleteModule = useMutation({
     mutationFn: (id: string) => {
       return api.delete(`/api/dashboard/modules/${id}`);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard', 'modules'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard_modules'] })
   });
 
   const sensors = useSensors(
@@ -299,7 +298,7 @@ export default function Dashboard() {
        const mod = modules.find(m => m.id === moduleId);
        if (mod && (mod.pos_x !== cellData.x || mod.pos_y !== cellData.y)) {
            // Optimistic update
-           queryClient.setQueryData(['dashboard', 'modules'], (old: ModuleConfig[]) => {
+           queryClient.setQueryData(['dashboard_modules'], (old: ModuleConfig[]) => {
               return old.map(m => m.id === moduleId ? { ...m, pos_x: cellData.x, pos_y: cellData.y } : m);
            });
            updateModule.mutate({ id: moduleId, updates: { pos_x: cellData.x, pos_y: cellData.y } });

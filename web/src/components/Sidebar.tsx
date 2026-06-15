@@ -24,11 +24,10 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/api/auth/logout', {});
+      await api.post('/api/auth/logout');
     } catch (e) {
       // Ignore
     }
-    localStorage.removeItem('token');
     navigate('/login');
   };
 

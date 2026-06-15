@@ -27,7 +27,15 @@ authRouter.post('/login', async (req, res) => {
 
     const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 
-    // Store session (simplified for Phase 1 without rigorous token hash & refresh setup)
+    // Ensure session uses httpOnly cookie
+    res.cookie('token', token, { 
+       httpOnly: true, 
+       secure: process.env.NODE_ENV === 'production', 
+       sameSite: 'lax',
+       path: '/',
+       maxAge: 8 * 60 * 60 * 1000 // 8 hours
+    });
+
     res.json({ token, user: { id: user.id, username, role: user.role } });
   } catch (error) {
     console.error('Login error:', error);
@@ -43,19 +51,26 @@ authRouter.post('/refresh', (req, res) => {
 
 // POST /api/auth/logout
 authRouter.post('/logout', (req, res) => {
-  // Skeleton implementation for Phase 1
+  res.clearCookie('token', { path: '/' });
   res.status(200).json({ success: true });
 });
 
 import { Request, Response, NextFunction } from 'express';
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  let token = req.cookies?.token;
+  
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+       token = authHeader.split(' ')[1];
+    }
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
     (req as any).user = payload;

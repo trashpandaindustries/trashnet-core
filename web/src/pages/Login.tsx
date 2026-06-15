@@ -11,8 +11,7 @@ export default function Login() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post('/api/auth/login', { username, password });
-      localStorage.setItem('token', res.token);
+      await api.post('/api/auth/login', { username, password });
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed');

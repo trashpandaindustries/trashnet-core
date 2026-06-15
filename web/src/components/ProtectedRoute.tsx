@@ -9,16 +9,10 @@ export default function ProtectedRoute() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsAuthenticated(false);
-        return;
-      }
       try {
         await api.get('/api/auth/me');
         setIsAuthenticated(true);
       } catch (e) {
-        localStorage.removeItem('token');
         setIsAuthenticated(false);
       }
     };

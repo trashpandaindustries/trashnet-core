@@ -61,7 +61,7 @@ export function TagPicker({ itemId, appliedTags, onAddTag, onRemoveTag }: TagPic
       </button>
       
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-2xl z-50 p-3 flex flex-col cursor-default" onClick={e => e.stopPropagation()}>
+        <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-md shadow-2xl z-50 p-3 flex flex-col cursor-default" onClick={e => e.stopPropagation()}>
           <div className="text-[10px] text-slate-500 mb-2 font-bold tracking-wider uppercase">Applied Tags</div>
           <div className="flex flex-wrap gap-1.5 mb-4">
             {appliedTags?.map(t => (

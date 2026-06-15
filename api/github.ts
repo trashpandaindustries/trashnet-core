@@ -2,27 +2,42 @@ import { Octokit } from 'octokit';
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = crypto.scryptSync(process.env.JWT_SECRET || 'default-secret-key-12345', 'salt', 32);
 
 export function encrypt(text: string) {
     if (!text) return text;
+    const salt = crypto.randomBytes(16);
+    const key = crypto.scryptSync(process.env.JWT_SECRET || 'default-secret-key-12345', salt, 32);
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
+    // Format: salt:iv:encrypted
+    return salt.toString('hex') + ':' + iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
 export function decrypt(text: string) {
     if (!text) return text;
     try {
         const textParts = text.split(':');
-        const iv = Buffer.from(textParts.shift()!, 'hex');
-        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-        const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
-        let decrypted = decipher.update(encryptedText);
-        decrypted = Buffer.concat([decrypted, decipher.final()]);
-        return decrypted.toString();
+        if (textParts.length === 2) {
+             const ENCRYPTION_KEY = crypto.scryptSync(process.env.JWT_SECRET || 'default-secret-key-12345', 'salt', 32);
+             const iv = Buffer.from(textParts[0], 'hex');
+             const encryptedText = Buffer.from(textParts[1], 'hex');
+             const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+             let decrypted = decipher.update(encryptedText);
+             decrypted = Buffer.concat([decrypted, decipher.final()]);
+             return decrypted.toString();
+        } else if (textParts.length === 3) {
+             const salt = Buffer.from(textParts[0], 'hex');
+             const key = crypto.scryptSync(process.env.JWT_SECRET || 'default-secret-key-12345', salt, 32);
+             const iv = Buffer.from(textParts[1], 'hex');
+             const encryptedText = Buffer.from(textParts[2], 'hex');
+             const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+             let decrypted = decipher.update(encryptedText);
+             decrypted = Buffer.concat([decrypted, decipher.final()]);
+             return decrypted.toString();
+        }
+        return '';
     } catch (e) {
         return ''; // Decryption failed
     }
