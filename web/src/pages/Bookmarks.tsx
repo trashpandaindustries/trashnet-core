@@ -163,9 +163,9 @@ function BookmarkCard({ bookmark, onDelete, onTogglePin }: { bookmark: any, onDe
   });
 
   return (
-    <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl overflow-hidden hover:border-slate-600 transition-colors group flex flex-col h-64">
+    <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl hover:border-slate-600 transition-colors group flex flex-col h-64">
       {/* Fallback image or scraped image */}
-      <div className="h-28 bg-slate-900 border-b border-slate-700/80 relative overflow-hidden flex-shrink-0">
+      <div className="h-28 bg-slate-900 border-b border-slate-700/80 relative overflow-hidden rounded-t-xl flex-shrink-0">
          {bookmark.og_image_url ? (
            <img src={bookmark.og_image_url} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
          ) : (

@@ -52,7 +52,7 @@ export function TagPicker({ itemId, appliedTags, onAddTag, onRemoveTag }: TagPic
   }, [isOpen]);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={`relative ${isOpen ? 'z-50' : ''}`} ref={menuRef}>
       <button 
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
         className="flex items-center gap-1.5 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-md transition-colors"
