@@ -155,6 +155,7 @@ async function startServer() {
   }
 
   const app = express();
+  app.set('trust proxy', 1);
   const server = http.createServer(app);
   const PORT = 3000;
   
@@ -207,7 +208,7 @@ async function startServer() {
         return;
     }
     try {
-        jwt.verify(token, process.env.JWT_SECRET || 'fallback');
+        jwt.verify(token, process.env.JWT_SECRET || 'change_this_to_a_secure_random_string');
     } catch {
         console.log('[WS] Rejected: Auth invalid');
         ws.close(1008, "Auth invalid");

@@ -1,7 +1,7 @@
 // For simplicity in Phase 1, using standard fetch API
 export const api = {
   get: async (url: string) => {
-    const res = await fetch(url);
+    const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
@@ -11,6 +11,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) throw new Error(await res.text());
@@ -22,6 +23,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -30,6 +32,7 @@ export const api = {
   delete: async (url: string) => {
     const res = await fetch(url, {
       method: 'DELETE',
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();

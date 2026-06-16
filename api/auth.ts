@@ -30,11 +30,13 @@ authRouter.post('/login', async (req, res) => {
     // Ensure session uses httpOnly cookie
     res.cookie('token', token, { 
        httpOnly: true, 
-       secure: process.env.NODE_ENV === 'production', 
-       sameSite: 'lax',
+       secure: true, 
+       sameSite: 'none',
+       partitioned: true,
        path: '/',
        maxAge: 8 * 60 * 60 * 1000 // 8 hours
-    });
+    } as any);
+
 
     res.json({ token, user: { id: user.id, username, role: user.role } });
   } catch (error) {
@@ -51,7 +53,12 @@ authRouter.post('/refresh', (req, res) => {
 
 // POST /api/auth/logout
 authRouter.post('/logout', (req, res) => {
-  res.clearCookie('token', { path: '/' });
+  res.clearCookie('token', { 
+    path: '/',
+    secure: true,
+    sameSite: 'none',
+    partitioned: true
+  } as any);
   res.status(200).json({ success: true });
 });
 
