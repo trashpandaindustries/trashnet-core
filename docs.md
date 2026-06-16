@@ -126,6 +126,14 @@ Example `docker-compose.yml` snippet:
       - /path/to/your/host/storage:/mnt/storage:ro
 ```
 
+Additionally, Trashnet-Core supports custom security and authentication settings via the following environment variables in the `api` container configuration to manage cookie and HTTPS behavior:
+
+- `COOKIE_SECURE`: Ensures cookies are only sent over HTTPS. (e.g., `true` or `false`).
+- `COOKIE_SAME_SITE`: Controls cross-site cookie behavior. Options include `lax`, `strict`, or `none`. If set to `none`, `COOKIE_SECURE` must also be true.
+- `HTTPS`: Indicates if the application is accessed over HTTPS. If `false`, disables `httpOnly` restrictions that require TLS.
+
+**Note:** Both `COOKIE_SECURE=true` and `HTTPS=true` are typically required for secure configurations, particularly when setting `COOKIE_SAME_SITE=none`. It is recommended not to enable these until you have fully configured HTTPS and reverse proxy (e.g., Caddy) in a production setup.
+
 
 ---
 

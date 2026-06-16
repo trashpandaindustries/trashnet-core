@@ -10,8 +10,8 @@ services:
       - "${CADDY_HTTPS_PORT:-443}:443"   # WAN access
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - /mnt/media/srv/dev/app/caddy_data:/data
+      - /mnt/media/srv/dev/app/caddy_config:/config
     networks:
       - trashnet-net
 
@@ -26,6 +26,11 @@ services:
       - DATABASE_URL=postgres://user:password@postgres:5432/trashnet
       - JWT_SECRET=change_this_to_a_secure_random_string
       - JWT_EXPIRES_IN=8h
+      - COOKIE_SECURE=false
+      - COOKIE_SAME_SITE=lax
+      - HTTPS=false
+      # Both required together — 'none' needs secure, and secure needs HTTPS (Caddy handles TLS)
+      # Do NOT set these before Phase 11 hardening is complete
     depends_on:
       - postgres
     networks:
@@ -49,7 +54,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=trashnet
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /mnt/media/srv/dev/app/postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
     networks:
       - trashnet-net

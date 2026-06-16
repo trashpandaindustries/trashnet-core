@@ -7,11 +7,13 @@ export const authRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_to_a_secure_random_string';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
+const cookieSecure = process.env.COOKIE_SECURE === 'true';
+const cookieSameSite = (process.env.COOKIE_SAME_SITE || 'lax') as 'lax' | 'strict' | 'none';
+const httpOnly = process.env.HTTPS !== 'false'; // default true, opt out for dev
 
-// POST /api/auth/login
+
 authRouter.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
   try {
     const result = await query('SELECT id, password_hash, role FROM users WHERE username = $1 AND is_active = true', [username]);
     const user = result.rows[0];
@@ -26,18 +28,19 @@ authRouter.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+    
+    console.log('[LOGIN] Token generated:', !!token);
+    console.log('[LOGIN] Cookie settings:', { secure: cookieSecure, sameSite: cookieSameSite });
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: cookieSameSite,
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000
+    });
 
-    // Ensure session uses httpOnly cookie
-    res.cookie('token', token, { 
-       httpOnly: true, 
-       secure: true, 
-       sameSite: 'none',
-       partitioned: true,
-       path: '/',
-       maxAge: 8 * 60 * 60 * 1000 // 8 hours
-    } as any);
-
-
+    console.log('[LOGIN] Cookie set, sending response');
     res.json({ token, user: { id: user.id, username, role: user.role } });
   } catch (error) {
     console.error('Login error:', error);
@@ -51,20 +54,21 @@ authRouter.post('/refresh', (req, res) => {
   res.status(501).json({ error: 'Not implemented in Phase 1 skeleton' });
 });
 
-// POST /api/auth/logout
 authRouter.post('/logout', (req, res) => {
   res.clearCookie('token', { 
     path: '/',
-    secure: true,
-    sameSite: 'none',
-    partitioned: true
-  } as any);
+    secure: cookieSecure,
+    sameSite: cookieSameSite,
+  });
   res.status(200).json({ success: true });
 });
 
 import { Request, Response, NextFunction } from 'express';
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  console.log('[AUTH] Cookies:', req.cookies);
+  console.log('[AUTH] Headers:', req.headers.authorization);
+  
   let token = req.cookies?.token;
   
   if (!token) {
@@ -73,6 +77,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
        token = authHeader.split(' ')[1];
     }
   }
+  
+
+  console.log('[AUTH] Token found:', !!token);
+  console.log('[AUTH] Token value:', token?.substring(0, 20) + '...');
 
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -80,9 +88,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
+    console.log('[AUTH] Verified payload:', payload);
     (req as any).user = payload;
     next();
   } catch (err) {
+    console.log('[AUTH] Verify error:', err);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
