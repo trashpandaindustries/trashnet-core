@@ -11,6 +11,12 @@ const cookieSecure = process.env.COOKIE_SECURE === 'true';
 const cookieSameSite = (process.env.COOKIE_SAME_SITE || 'lax') as 'lax' | 'strict' | 'none';
 const httpOnly = process.env.HTTPS !== 'false'; // default true, opt out for dev
 
+// console logging for debug
+const DEBUG = process.env.DEBUG === 'true';
+
+const log = (msg: string, ...args: any[]) => {
+  if (DEBUG) console.log(msg, ...args);
+};
 
 authRouter.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -29,18 +35,20 @@ authRouter.post('/login', async (req, res) => {
 
     const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     
-    console.log('[LOGIN] Token generated:', !!token);
-    console.log('[LOGIN] Cookie settings:', { secure: cookieSecure, sameSite: cookieSameSite });
+
+    log('[DEBUG] Start debug loggin');
+    log('[LOGIN] Token generated:', !!token);
+    log('[LOGIN] Cookie settings:', { secure: cookieSecure, sameSite: cookieSameSite });
     
     res.cookie('token', token, {
-      httpOnly: true,
+      httpOnly: httpOnly,
       secure: cookieSecure,
       sameSite: cookieSameSite,
       path: '/',
       maxAge: 8 * 60 * 60 * 1000
     });
 
-    console.log('[LOGIN] Cookie set, sending response');
+    log('[LOGIN] Cookie set, sending response');
     res.json({ token, user: { id: user.id, username, role: user.role } });
   } catch (error) {
     console.error('Login error:', error);
@@ -66,8 +74,9 @@ authRouter.post('/logout', (req, res) => {
 import { Request, Response, NextFunction } from 'express';
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log('[AUTH] Cookies:', req.cookies);
-  console.log('[AUTH] Headers:', req.headers.authorization);
+  
+  log('[AUTH] Cookies:', req.cookies);
+  log('[AUTH] Headers:', req.headers.authorization);
   
   let token = req.cookies?.token;
   
@@ -77,22 +86,20 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
        token = authHeader.split(' ')[1];
     }
   }
-  
 
-  console.log('[AUTH] Token found:', !!token);
-  console.log('[AUTH] Token value:', token?.substring(0, 20) + '...');
-
+  log('[AUTH] Token found:', !!token);
+  log('[AUTH] Token value:', token?.substring(0, 20) + '...');
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
-    console.log('[AUTH] Verified payload:', payload);
+    log('[AUTH] Verified payload:', payload);
     (req as any).user = payload;
     next();
   } catch (err) {
-    console.log('[AUTH] Verify error:', err);
+    log('[AUTH] Verify error:', err);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }

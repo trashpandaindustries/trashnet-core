@@ -134,6 +134,7 @@ Additionally, Trashnet-Core supports custom security and authentication settings
 
 **Note:** Both `COOKIE_SECURE=true` and `HTTPS=true` are typically required for secure configurations, particularly when setting `COOKIE_SAME_SITE=none`. It is recommended not to enable these until you have fully configured HTTPS and reverse proxy (e.g., Caddy) in a production setup.
 
+- `DEBUG`: Switch to true to show token and login issues in the api logs, WARNING it will spill everything you didnt want to know.
 
 ---
 

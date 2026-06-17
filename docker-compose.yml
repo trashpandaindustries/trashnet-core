@@ -29,6 +29,7 @@ services:
       - COOKIE_SECURE=false
       - COOKIE_SAME_SITE=lax
       - HTTPS=false
+      - DEBUG=false # WARNING: exposes tokens and auth details in logs, LAN only
       # Both required together — 'none' needs secure, and secure needs HTTPS (Caddy handles TLS)
       # Do NOT set these before Phase 11 hardening is complete
     depends_on:
